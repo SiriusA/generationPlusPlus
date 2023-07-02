@@ -1,6 +1,7 @@
 
 using Menu.Remix.MixedUI;
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace MapExporter
@@ -15,14 +16,13 @@ namespace MapExporter
                 new OpTab(this, "")
             };
             kbUse = new OpKeyBinder(MapExporter.activateKey, new Vector2(100f, 390f), new Vector2(150f, 30f), true, OpKeyBinder.BindController.AnyController);
-            checkboxscreenshots = new OpCheckBox(MapExporter.Screenshots, new Vector2(105f, 320f))
+            checkboxscreenshots = new OpCheckBox(MapExporter.screenshots, new Vector2(105f, 320f))
             {
                 description = Translate("Capture Screenshots")
             };
-            this.checkboxcamerablacklist = new OpCheckBox(MapExporter.CameraBlacklist, new Vector2(350f, 300f))
+            this.checkboxcamerablacklist = new OpTextBox(MapExporter.cameraBlacklist, new Vector2(350f, 300f), 10f);
             {
-                PaletteHex = ExporterOptions.paletteHex,
-                PaletteName = ExporterOptions.paletteName
+                // DefaultCameraBlacklist = ExporterOptions.defaultCameraBlacklist
             };
             this.Tabs[0].AddItems(new UIelement[]
             {
@@ -87,11 +87,11 @@ namespace MapExporter
             opTab.AddItems(elements);
         }
 
-        private OpColorPicker checkboxcamerablacklist;
+        private OpTextBox checkboxcamerablacklist;
         private OpKeyBinder kbUse;
         private OpCheckBox checkboxscreenshots;
 
-        public static readonly string[] paletteHex = new string[]
+        public static readonly string[] fdefaultCameraBlacklist = new string[]
         {
             "FFFFFF",
             "000000",
@@ -102,5 +102,15 @@ namespace MapExporter
             "White",
             "Black",
         };
+
+        public static string gdefaultCameraBlacklist = "";
+    public static readonly Dictionary<string, int[]> defaultCameraBlacklist = new()
+    {
+        { "SU_B13", new int[]{2} }, // one indexed
+        { "GW_S08", new int[]{2} }, // in vanilla only
+        { "SL_C01", new int[]{4,5} }, // crescent order or will break
+    };
+
+
     }
 }

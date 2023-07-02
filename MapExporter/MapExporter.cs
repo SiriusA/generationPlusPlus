@@ -8,6 +8,8 @@ using System.Collections.Generic;
 using BepInEx;
 using BepInEx.Logging;
 using System.Text.RegularExpressions;
+using System.Reflection;
+using System;
 
 #pragma warning disable CS0618 // Type or member is obsolete
 [assembly: SecurityPermission(SecurityAction.RequestMinimum, SkipVerification = true)]
@@ -15,22 +17,53 @@ using System.Text.RegularExpressions;
 
 namespace MapExporter;
 
-[BepInPlugin("io.github.henpemaz-dual", "Map Exporter", "1.0.0")]
-sealed class MapExporter : BaseUnityPlugin
+[BepInPlugin("io.github.henpemaz-dual-juliacat", "Map Exporter Downpour", "1.2.0")]
+public class MapExporter : BaseUnityPlugin
 {
+    
     // Config
-    static readonly string[] captureSpecific = { }; // For example, "White;SU" loads Outskirts as Survivor
-    static readonly bool screenshots = true;
+    
+    string[] CaptureSpecific = { }; // For example, "White;SU" loads Outskirts as Survivor
+    bool Screenshots = true;
 
-    static readonly Dictionary<string, int[]> blacklistedCams = new()
+    static readonly Dictionary<string, int[]> CameraBlacklist = new()
     {
         { "SU_B13", new int[]{2} }, // one indexed
         { "GW_S08", new int[]{2} }, // in vanilla only
         { "SL_C01", new int[]{4,5} }, // crescent order or will break
     };
-    Configurable<bool> Screenshots;
-    Configurable<string> CaptureSpecific;
-    Configurable<string> CameraBlacklist;
+    
+   
+        public static Configurable<bool>[] cfgScreenshots = new Configurable<bool>[0];
+        public static Configurable<string>[] cfgCaptureSpecific = new Configurable<string>[0];
+        public static Configurable<string>[] cfgCameraBlacklist = new Configurable<string>[0];
+        internal static Configurable<string> captureSpecific;
+        internal static Configurable<bool> screenshots;
+        internal static Configurable<string> cameraBlacklist;
+
+      //  string CaptureSpecific;
+       // bool Screenshots;
+       // string CameraBlacklist;
+   
+
+    // bring in the menu options
+
+        public const string PLUGIN_ID = "io.github.henpemaz-dual-juliacat";
+        public const string PLUGIN_NAME = "Map Exporter Downpour";
+        public const string PLUGIN_VERSION = "1.2.0";
+        private bool init = false;
+        internal static MapExporter instance;
+        internal static ExporterOptions oi;
+
+        internal static Configurable<KeyCode> activateKey;
+        //internal static Configurable<bool> screenshots;
+        internal static short hold;
+        internal static bool freeze;
+        internal static bool mask;
+        internal static bool keyDown;
+        internal static RainWorld rw;
+        internal static Room curRoom;
+        public const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
     public static new ManualLogSource Logger;
 
@@ -115,7 +148,7 @@ sealed class MapExporter : BaseUnityPlugin
     // Consistent RNG ?
     private void RainWorld_Update(On.RainWorld.orig_Update orig, RainWorld self)
     {
-        Random.InitState(0);
+        UnityEngine.Random.InitState(0);
         orig(self);
     }
 
@@ -376,7 +409,7 @@ sealed class MapExporter : BaseUnityPlugin
     {
         // Task start
         Logger.LogDebug("capture task start");
-        Random.InitState(0);
+        UnityEngine.Random.InitState(0);
 
         // 1st camera transition is a bit whack ? give it a sec to load
         //while (game.cameras[0].www != null) yield return null;
@@ -387,8 +420,8 @@ sealed class MapExporter : BaseUnityPlugin
 
         SlugcatFile slugcatsJson = new();
 
-        if (captureSpecific?.Length > 0) {
-            foreach (var capture in captureSpecific) {
+        if (CaptureSpecific?.Length > 0) {
+            foreach (var capture in CaptureSpecific) {
                 SlugcatStats.Name slugcat = new(capture.Split(';')[0]);
 
                 game.GetStorySession.saveStateNumber = slugcat;
@@ -432,7 +465,7 @@ sealed class MapExporter : BaseUnityPlugin
         SlugcatStats.Name slugcat = game.StoryCharacter;
 
         // load region
-        Random.InitState(0);
+        UnityEngine.Random.InitState(0);
         game.overWorld.LoadWorld(region, slugcat, false);
         Logger.LogDebug($"Loaded {slugcat}/{region}");
 
@@ -469,7 +502,7 @@ sealed class MapExporter : BaseUnityPlugin
 
         // load room
         game.overWorld.activeWorld.loadingRooms.Clear();
-        Random.InitState(0);
+        UnityEngine.Random.InitState(0);
         game.overWorld.activeWorld.ActivateRoom(room);
         // load room until it is loaded
         if (game.overWorld.activeWorld.loadingRooms.Count > 0 && game.overWorld.activeWorld.loadingRooms[0].room == room.realizedRoom) {
@@ -482,7 +515,7 @@ sealed class MapExporter : BaseUnityPlugin
             room.realizedRoom.Update();
         }
 
-        if (blacklistedCams.TryGetValue(room.name, out int[] cams)) {
+        if (CameraBlacklist.TryGetValue(room.name, out int[] cams)) {
             var newpos = room.realizedRoom.cameraPositions.ToList();
             for (int i = cams.Length - 1; i >= 0; i--) {
                 newpos.RemoveAt(cams[i] - 1);
@@ -491,19 +524,19 @@ sealed class MapExporter : BaseUnityPlugin
         }
 
         yield return null;
-        Random.InitState(0);
+        UnityEngine.Random.InitState(0);
         // go to room
         game.cameras[0].MoveCamera(room.realizedRoom, 0);
         game.cameras[0].virtualMicrophone.AllQuiet();
         // get to room
         while (game.cameras[0].loadingRoom != null) yield return null;
-        Random.InitState(0);
+        UnityEngine.Random.InitState(0);
 
         regionContent.UpdateRoom(room.realizedRoom);
 
         for (int i = 0; i < room.realizedRoom.cameraPositions.Length; i++) {
             // load screen
-            Random.InitState(room.name.GetHashCode()); // allow for deterministic random numbers, to make rain look less garbage
+            UnityEngine.Random.InitState(room.name.GetHashCode()); // allow for deterministic random numbers, to make rain look less garbage
             game.cameras[0].MoveCamera(i);
             game.cameras[0].virtualMicrophone.AllQuiet();
             while (game.cameras[0].www != null) yield return null;
@@ -511,7 +544,7 @@ sealed class MapExporter : BaseUnityPlugin
             yield return null; // one extra frame maybe
                                // fire!
 
-            if (screenshots) {
+            if (Screenshots) {
                 string filename = PathOfScreenshot(game.StoryCharacter.value, room.world.name, room.name, i);
 
                 if (!File.Exists(filename)) {
@@ -524,7 +557,7 @@ sealed class MapExporter : BaseUnityPlugin
 
             yield return null; // one extra frame after ??
         }
-        Random.InitState(0);
+        UnityEngine.Random.InitState(0);
         room.Abstractize();
         yield return null;
     }
