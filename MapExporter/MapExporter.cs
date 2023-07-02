@@ -28,6 +28,9 @@ sealed class MapExporter : BaseUnityPlugin
         { "GW_S08", new int[]{2} }, // in vanilla only
         { "SL_C01", new int[]{4,5} }, // crescent order or will break
     };
+    Configurable<bool> Screenshots;
+    Configurable<string> CaptureSpecific;
+    Configurable<string> CameraBlacklist;
 
     public static new ManualLogSource Logger;
 
