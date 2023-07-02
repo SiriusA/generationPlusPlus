@@ -15,7 +15,9 @@ sealed class RegionInfo : IJsonObject
     readonly List<Color> fgcolors;
     readonly List<Color> bgcolors;
     readonly List<Color> sccolors;
-    readonly HashSet<string> worldSpawns;
+    readonly HashSet<string> worldCreatures;
+    readonly HashSet<string> worldBatMigrationBlockages;
+    readonly HashSet<string> worldRoomTags;
 
     public string copyRooms;
 
@@ -30,10 +32,12 @@ sealed class RegionInfo : IJsonObject
         bgcolors = new List<Color>();
         sccolors = new List<Color>();
 
-        worldSpawns = new HashSet<string>();
+        worldCreatures = new HashSet<string>();
+        worldBatMigrationBlockages = new HashSet<string>();
+        worldRoomTags = new HashSet<string>();
 
         LoadMapConfig(world);
-        LoadSpawns(world);
+        LoadWorldConfig(world);
     }
 
     private RoomEntry GetOrCreateRoomEntry(string name)
@@ -75,12 +79,14 @@ sealed class RegionInfo : IJsonObject
         }
     }
 
-    private void LoadSpawns(World world)
+    private void LoadWorldConfig(World world)
     {
         string acronym = world.region.name;
         string path = AssetManager.ResolveFilePath($"world/{acronym}/world_{acronym}.txt");
         if (File.Exists(path)) {
             AssimilateCreatures(File.ReadAllLines(path));
+            AssimilateBatMigrationBlockages(File.ReadAllLines(path));
+            AssimilateRoomTags(File.ReadAllLines(path));
         }
         else {
             MapExporter.Logger.LogError($"WORLD FILE DOES NOT EXIST: {path}");
@@ -97,7 +103,35 @@ sealed class RegionInfo : IJsonObject
             else if (insideofcreatures)
             {
                 if (string.IsNullOrEmpty(item) || item.StartsWith("//")) continue;
-                worldSpawns.Add(item);
+                worldCreatures.Add(item);
+            }
+        }
+    }
+    private void AssimilateBatMigrationBlockages(IEnumerable<string> raw)
+    {
+        bool insideofbatmigration = false;
+        foreach (var item in raw)
+        {
+            if (item == "BAT MIGRATION BLOCKAGES") insideofbatmigration = true;
+            else if (item == "END BAT MIGRATION BLOCKAGES") insideofbatmigration = false;
+            else if (insideofbatmigration)
+            {
+                if (string.IsNullOrEmpty(item) || item.StartsWith("//")) continue;
+                worldBatMigrationBlockages.Add(item);
+            }
+        }
+    }
+    private void AssimilateRoomTags(IEnumerable<string> raw)
+    {
+        bool insideofrooms = false;
+        foreach (var item in raw)
+        {
+            if (item == "ROOMS") insideofrooms = true;
+            else if (item == "END ROOMS") insideofrooms = false;
+            else if (insideofrooms)
+            {
+                if (string.IsNullOrEmpty(item) || item.StartsWith("//")) continue;
+                worldRoomTags.Add(item);
             }
         }
     }
@@ -126,7 +160,9 @@ sealed class RegionInfo : IJsonObject
         else {
             ret["copyRooms"] = copyRooms;
         }
-        ret["spawns"] = worldSpawns.ToArray();
+        ret["creatures"] = worldCreatures.ToArray();
+        ret["batmigration"] = worldBatMigrationBlockages.ToArray();
+        ret["roomtags"] = worldRoomTags.ToArray();
         return ret;
     }
 
@@ -139,7 +175,6 @@ sealed class RegionInfo : IJsonObject
         fgcolors.Add(fg);
         bgcolors.Add(bg);
         sccolors.Add(sc);
-
     }
 
     sealed class RoomEntry : IJsonObject
