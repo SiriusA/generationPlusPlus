@@ -161,8 +161,8 @@ sealed class RegionInfo : IJsonObject
             ret["copyRooms"] = copyRooms;
         }
         ret["creatures"] = worldCreatures.ToArray();
-        ret["batmigration"] = worldBatMigrationBlockages.ToArray();
-        ret["roomtags"] = worldRoomTags.ToArray();
+        ret["batMigration"] = worldBatMigrationBlockages.ToArray();
+        ret["roomTags"] = worldRoomTags.ToArray();
         return ret;
     }
 

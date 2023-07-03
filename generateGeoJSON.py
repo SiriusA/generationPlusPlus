@@ -6,6 +6,25 @@ import colorsys
 import numpy as np
 from PIL import Image
 
+f = open('output_log.txt', 'w')
+f.write('Adding text')
+
+
+outfile = 'output_log.txt'
+
+def log(n):
+    print(n)
+    log = [n]
+    log.append(n)
+
+with open(outfile, "w") as f:
+    f.write("log")
+
+with open(outfile, 'w') as f:
+    x = "Test"
+    for p in x:
+        f.write(p+"\n")
+
 # making python more pythonic smh
 def readfile(filename):
     with open(filename) as file:
@@ -30,30 +49,36 @@ center_of_tile = np.array([10,10])
 
 screenshots_root = "./py-input"
 output_folder = "./py-output"
+output_log = "./output_log.txt"
 
 optimize_geometry = True
 skip_existing_tiles = True
 only_slugcat = None
 only_region = None
 
-task_export_tiles = True
+task_export_tiles = False
 task_export_features = True
-task_export_room_features = True
-task_export_connection_features = True
-task_export_geo_features = True
-task_export_spawn_features = True
+task_export_room_features = False
+task_export_connection_features = False
+task_export_geo_features = False
+task_export_spawn_features = False
+task_export_placedobject_features = False
+task_export_roomtag_features = True
+task_export_shortcut_features = False
+task_export_batmigrationblockages_features = False
+task_export_conditionallinks_features = False
 
 def do_slugcat(slugcat: str):
     if only_slugcat is not None and only_slugcat != slugcat:
         return
 
-    print("Found slugcat regions: " + slugcat)
+    log("Found slugcat regions: " + slugcat)
         
     for entry in os.scandir(os.path.join(screenshots_root, slugcat)):
         if not entry.is_dir() or len(entry.name) != 2 or (only_region is not None and only_region != entry.name):
             continue
 
-        print("Found region: " + entry.name)
+        log("Found region: " + entry.name)
         with open(os.path.join(entry.path, "metadata.json")) as metadata:
             regiondata = json.load(metadata)
         assert entry.name == str(regiondata['acronym']).lower()
@@ -109,7 +134,7 @@ def do_slugcat(slugcat: str):
     
             ## Building image tiles for each zoom level
             for zoomlevel in range(0, -8, -1):
-                print(f"{slugcat}/{entry.name}: z = {zoomlevel}")
+                log(f"{slugcat}/{entry.name}: z = {zoomlevel}")
 
                 target = os.path.join(output_folder, slugcat, entry.name, str(zoomlevel))
                 if not os.path.exists(target):
@@ -131,7 +156,7 @@ def do_slugcat(slugcat: str):
                             continue
 
                         # making a tile
-                        #print(f"processing {tilex}_{tiley}")
+                        #log(f"processing {tilex}_{tiley}")
                         current_tile = np.array([tilex,tiley])
                         tilecoords = tile_size * current_tile
                         tileuppercoords = tilecoords + tile_size
@@ -164,7 +189,7 @@ def do_slugcat(slugcat: str):
                                     paste_offset[1] = -paste_offset[1]
                                     # bug: despite the docs, paste requires a 4-tuble box, not a simple topleft coordinate
                                     paste_offset = (paste_offset[0], paste_offset[1],paste_offset[0] + camimg.width, paste_offset[1] + camimg.height)
-                                    #print(f"paste_offset is {paste_offset}")
+                                    #log(f"paste_offset is {paste_offset}")
                                     tile.paste(camimg, paste_offset)
                                     camimg.close()
                                 
@@ -173,7 +198,7 @@ def do_slugcat(slugcat: str):
                             tile.save(os.path.join(target, f"{tilex}_{-1 - tiley}.png"), optimize=True)
                             tile.close()
                             tile = None
-            print("done with tiles task")
+            log("done with tiles task",file=output_log.txt)
 
         if task_export_features:
             features = {}
@@ -234,7 +259,7 @@ def do_slugcat(slugcat: str):
                             roomcam_max = np.max([roomcam_max, camcoords + camsize],0)
                         coords = np.array([roomcam_min, (roomcam_min[0], roomcam_max[1]), roomcam_max, (roomcam_max[0], roomcam_min[1]), roomcam_min]).round(3).tolist()
                         popupcoords = (roomcam_max - np.array([((roomcam_max[0] - roomcam_min[0]), 0)])/2).round().tolist()[0] # single coord
-                    #print(f"room {roomname} coords are {coords}")
+                    #log(f"room {roomname} coords are {coords}")
                     room_features.append(geojson.Feature(
                         geometry=geojson.Polygon([coords,]), # poly expect a list containing a list of coords for each continuous edge
                         properties={
@@ -249,10 +274,10 @@ def do_slugcat(slugcat: str):
                 features["connection_features"] = connection_features
                 for conn in connections:
                     if not conn["roomA"] in rooms or not conn["roomB"] in rooms:
-                        print("connection for missing rooms: " + conn["roomA"] + " " + conn["roomB"])
+                        log("connection for missing rooms: " + conn["roomA"] + " " + conn["roomB"])
                         continue
                     if (conn["roomA"],conn["roomB"]) in done or (conn["roomB"],conn["roomA"]) in done:
-                        print("connection repeated for rooms: " + conn["roomA"] + " " + conn["roomB"])
+                        log("connection repeated for rooms: " + conn["roomA"] + " " + conn["roomB"])
                         continue
 
                     coordsA = rooms[conn["roomA"]]["roomcoords"] + np.array(conn["posA"])*20 + center_of_tile
@@ -272,7 +297,7 @@ def do_slugcat(slugcat: str):
                 geo_features = []
                 features["geo_features"] = geo_features
                 for roomname, room in rooms.items():
-                    print("processing geo for " + roomname)
+                    log("processing geo for " + roomname)
                     if room['size'] is None:
                         # geo_features.append(geojson.Feature(geojson.MultiLineString([])))
                         continue
@@ -434,7 +459,7 @@ def do_slugcat(slugcat: str):
             if task_export_spawn_features:
                 spawn_features = []
                 features["spawn_features"] = spawn_features
-                print("creatures task!")
+                log("creatures task!")
                 # read spawns, group spawns into dens (dens have a position)
                 dens = {}
                 for spawnentry in regiondata["spawns"]:
@@ -442,14 +467,14 @@ def do_slugcat(slugcat: str):
                     if not spawnentry:
                         continue
 
-                    if spawnentry.startswith("(X-"):
+                    if spawnentry.endswith("(X-"):
                         # X- means the creature spawns for every slugcat EXCEPT the listed ones. skip if current slugcat is one of those
                         slugcats_without_creature = [str(s.strip()).lower() for s in spawnentry[3:spawnentry.index(")")].split(",") if s.strip()]
                         if len(slugcats_without_creature) > 0 and slugcat.lower() in slugcats_without_creature:
                             continue
                         spawnentry = spawnentry[spawnentry.index(")")+1:]
                     # creature spawns for listed slugcats. skip if current slugcat isn't one of those
-                    elif spawnentry.startswith("("):
+                    elif spawnentry.endswith("("):
                         slugcats_with_creature = [str(s.strip()).lower() for s in spawnentry[1:spawnentry.index(")")].split(",") if s.strip()]
                         if len(slugcats_with_creature) > 0 and slugcat.lower() not in slugcats_with_creature:
                             continue
@@ -458,7 +483,7 @@ def do_slugcat(slugcat: str):
                     arr = spawnentry.split(" : ")
                     if arr[0] == "LINEAGE":
                         if len(arr) < 3:
-                            print("faulty spawn! missing stuff: " + spawnentry)
+                            log("faulty spawn! missing stuff: " + spawnentry)
                             continue
                         room_name = arr[1]
                         den_index = arr[2]
@@ -466,13 +491,13 @@ def do_slugcat(slugcat: str):
                             # creature is in a room that doesn't exist for this region
                             continue
                         if room_name != "OFFSCREEN" and len(rooms[room_name]["nodes"]) <= int(den_index):
-                            print("faulty spawn! den index over room nodes: " + spawnentry)
+                            log("faulty spawn! den index over room nodes: " + spawnentry)
                             continue
                         if room_name != "OFFSCREEN":
                             node = rooms[room_name]["nodes"][int(den_index)]
                             tiles = rooms[room_name]["tiles"]
                             if tiles[node[1]][node[0]][2] != 3:
-                                print("faulty spawn! not a den: " + spawnentry)
+                                log("faulty spawn! not a den: " + spawnentry)
                                 continue
 
                         spawn = {}
@@ -505,13 +530,13 @@ def do_slugcat(slugcat: str):
                                 # creature is in a room that doesn't exist for this region
                                 continue
                             if room_name  != "OFFSCREEN" and len(rooms[room_name]["nodes"]) <= int(den_index):
-                                print("faulty spawn! den index over room nodes: " + room_name + " : " + creature_desc)
+                                log("faulty spawn! den index over room nodes: " + room_name + " : " + creature_desc)
                                 continue
                             if room_name != "OFFSCREEN":
                                 node = rooms[room_name]["nodes"][int(den_index)]
                                 tiles = rooms[room_name]["tiles"]
                                 if tiles[node[1]][node[0]][2] != 3:
-                                    print("faulty spawn! not a den: " + spawnentry)
+                                    log("faulty spawn! not a den: " + spawnentry)
                                     continue
                         
                             spawn["amount"] = 1
@@ -521,14 +546,14 @@ def do_slugcat(slugcat: str):
                                     try:
                                         spawn["amount"] = int(attr[-1])
                                     except:
-                                        print("amount not specified. first attribute is \"" + attr[-1] + "\" in \"" + room_name + " : " + creature_desc + "\"")
+                                        log("amount not specified. first attribute is \"" + attr[-1] + "\" in \"" + room_name + " : " + creature_desc + "\"")
                                 if "{PreCycle}" in attr:
                                     spawn["pre_cycle"] = True
                                 if "{Night}" in attr:
                                     spawn["night"] = True
 
                             if spawn["creature"] == "Spider 10": ## Bruh...
-                                print("faulty spawn! stupid spiders: " + room_name + " : " + creature_desc)
+                                log("faulty spawn! stupid spiders: " + room_name + " : " + creature_desc)
                                 continue ## Game doesnt parse it, so wont I
                             denkey = room_name+ ":" +den_index # room:den
                             if denkey in dens:
@@ -547,20 +572,127 @@ def do_slugcat(slugcat: str):
                         geometry=geojson.Point(np.array(dencoords).round().tolist()),
                         properties=den))
 
-                print("creatures task done!")
+                log("creatures task done!")
+
+            ##Objects
+            if task_export_placedobject_features:
+                placedobject_features = []
+                features["placedobject_features"] = placedobject_features
+                log("placed object task!")
+
+                log("placed object task done!")
+
+            ##RoomTags
+            if task_export_roomtag_features:
+                roomtag_features = []
+                features["roomtag_features"] = roomtag_features
+                log("room tag task!")
+                for roomentry in regiondata["roomTags"]:
+                    roomentry = roomentry.strip()
+                    roomname = roomentry.partition(" : ")
+                    roomtag = roomname[2].partition(" : ")
+
+                    if not roomentry:
+                        continue
+
+                    elif roomentry.endswith("GATE"):
+                        roomname = roomname[0]
+                        roomtag = roomtag[2]
+                        log("tagged " + roomname + " as " + roomtag)
+                        if len(roomname) > 0 and slugcat.lower() in roomname:
+                            continue
+                    elif roomentry.endswith("SWARMROOM"):
+                        roomname = roomname[0]
+                        roomtag = roomtag[2]
+                        log("tagged " + roomname + " as " + roomtag)
+                        if len(roomname) > 0 and slugcat.lower() in roomname:
+                            continue
+                    elif roomentry.endswith("SHELTER"):
+                        roomname = roomname[0]
+                        roomtag = roomtag[2]
+                        log("tagged " + roomname + " as " + roomtag)
+                        if len(roomname) > 0 and slugcat.lower() in roomname:
+                            continue
+                    elif roomentry.endswith("ANCIENTSHELTER"):
+                        roomname = roomname[0]
+                        roomtag = roomtag[2]
+                        log("tagged " + roomname + " as " + roomtag)
+                        if len(roomname) > 0 and slugcat.lower() in roomname:
+                            continue
+                    elif roomentry.endswith("SCAVOUTPOST"):
+                        roomname = roomname[0]
+                        roomtag = roomtag[2]
+                        log("tagged " + roomname + " as " + roomtag)
+                        if len(roomname) > 0 and slugcat.lower() in roomname:
+                            continue
+                    elif roomentry.endswith("SCAVTRADER"):
+                        roomname = roomname[0]
+                        roomtag = roomtag[2]
+                        log("tagged " + roomname + " as " + roomtag)
+                        if len(roomname) > 0 and slugcat.lower() in roomname:
+                            continue
+                    elif roomentry.endswith("PERF_HEAVY"):
+                        roomname = roomname[0]
+                        roomtag = roomtag[2]
+                        log("tagged " + roomname + " as " + roomtag)
+                        if len(roomname) > 0 and slugcat.lower() in roomname:
+                            continue
+                    elif roomentry.endswith("NOTRACKERS"):
+                        roomname = roomname[0]
+                        roomtag = roomtag[2]
+                        log("tagged " + roomname + " as " + roomtag)
+                        if len(roomname) > 0 and slugcat.lower() in roomname:
+                            continue
+                    elif roomentry.endswith("ARENA"):
+                        roomname = roomname[0]
+                        roomtag = roomtag[2]
+                        log("tagged " + roomname + " as " + roomtag)
+                        if len(roomname) > 0 and slugcat.lower() in roomname:
+                            continue
+                    else:
+                        roomtag = "null",
+                        roomname = roomname[0]
+                    roomtag_features.append(geojson.Feature(
+                        properties = {
+                            "roomname":roomname,
+                            "tag":roomtag
+                        }))
+                log("room tag task done!")
+           
+            ##Shortcuts
+            if task_export_shortcut_features:
+                shortcut_features = []
+                features["shortcut_features"] = shortcut_features
+                log("shortcut task!")
+                log("shortcuts task done!")
+
+            ##Bat Migration Blockages
+            if task_export_batmigrationblockages_features:
+                batmigrationblockages_features = []
+                features["batmigrationblockages_features"] = batmigrationblockages_features
+                log("bat migration blockages task!")
+                log("bat migration blockages task done!")
+
+            ##Conditional Links
+            if task_export_conditionallinks_features:
+                conditionallinks_features = []
+                features["conditionallinks_features"] = conditionallinks_features
+                log("conditional links task!")
+                log("conditional links task done!")
 
             target = os.path.join(output_folder, slugcat, entry.name)
             if not os.path.exists(target):
                 os.makedirs(target, exist_ok=True)
             with open(os.path.join(target, "region.json"), 'w') as myout:
                 json.dump(features,myout)
-            print("done with features task")
+            log("done with features task")
 
-        print("Region done! " + entry.name)
+        log("Region done! " + entry.name)
 
-    print("Slugcat done! " + slugcat)
+    log("Slugcat done! " + slugcat)
 
 os.makedirs(output_folder, exist_ok=True)
+# os.makefile(output_log, exist_oke=True)
 
 # Copy slugcats.json
 with open(os.path.join(screenshots_root, "slugcats.json"), "r") as slugcats_from:
@@ -572,5 +704,6 @@ for slugcat_entry in os.scandir(screenshots_root):
     if slugcat_entry.is_dir():
         do_slugcat(slugcat_entry.name)
 
-print("Done!")
+log("Done!")
+# output_log.write(log().read)
 s = input()
