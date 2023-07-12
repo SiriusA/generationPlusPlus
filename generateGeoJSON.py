@@ -1,3 +1,4 @@
+from asyncio.windows_events import NULL
 from copy import copy
 import os
 import json, geojson
@@ -5,25 +6,7 @@ import statistics
 import colorsys
 import numpy as np
 from PIL import Image
-
-f = open('output_log.txt', 'w')
-f.write('Adding text')
-
-
-outfile = 'output_log.txt'
-
-def log(n):
-    print(n)
-    log = [n]
-    log.append(n)
-
-with open(outfile, "w") as f:
-    f.write("log")
-
-with open(outfile, 'w') as f:
-    x = "Test"
-    for p in x:
-        f.write(p+"\n")
+import distutils.core
 
 # making python more pythonic smh
 def readfile(filename):
@@ -49,11 +32,12 @@ center_of_tile = np.array([10,10])
 
 screenshots_root = "./py-input"
 output_folder = "./py-output"
-output_log = "./output_log.txt"
 
 optimize_geometry = True
-skip_existing_tiles = True
+skip_existing_tiles = False
+# None, "yellow, white, red, gourmand, artificer, rivulet, spear, saint, inv", "yellow", "yellow, white, red"
 only_slugcat = None
+# None, "cc", "cc, su, ss, sb, sh"
 only_region = None
 
 task_export_tiles = False
@@ -61,28 +45,27 @@ task_export_features = True
 task_export_room_features = False
 task_export_connection_features = False
 task_export_geo_features = False
-task_export_spawn_features = False
-task_export_placedobject_features = False
-task_export_roomtag_features = True
+task_export_creatures_features = False
+task_export_placedobject_features = True
+task_export_roomtag_features = False
 task_export_shortcut_features = False
 task_export_batmigrationblockages_features = False
-task_export_conditionallinks_features = False
 
 def do_slugcat(slugcat: str):
     if only_slugcat is not None and only_slugcat != slugcat:
         return
 
-    log("Found slugcat regions: " + slugcat)
-        
+    print("Found slugcat regions: " + slugcat)
+    # cycle through each region for the corresponding slugcats
     for entry in os.scandir(os.path.join(screenshots_root, slugcat)):
         if not entry.is_dir() or len(entry.name) != 2 or (only_region is not None and only_region != entry.name):
             continue
-
-        log("Found region: " + entry.name)
+        # record the region acronyms
+        print("Found region: " + entry.name)
         with open(os.path.join(entry.path, "metadata.json")) as metadata:
             regiondata = json.load(metadata)
         assert entry.name == str(regiondata['acronym']).lower()
-
+        # get region rooms
         copyingRooms = 'copyRooms' in regiondata
         if copyingRooms:
             with open(os.path.join(screenshots_root, regiondata['copyRooms'], entry.name, "metadata.json")) as metadata:
@@ -134,7 +117,7 @@ def do_slugcat(slugcat: str):
     
             ## Building image tiles for each zoom level
             for zoomlevel in range(0, -8, -1):
-                log(f"{slugcat}/{entry.name}: z = {zoomlevel}")
+                print(f"{slugcat}/{entry.name}: z = {zoomlevel}")
 
                 target = os.path.join(output_folder, slugcat, entry.name, str(zoomlevel))
                 if not os.path.exists(target):
@@ -156,7 +139,7 @@ def do_slugcat(slugcat: str):
                             continue
 
                         # making a tile
-                        #log(f"processing {tilex}_{tiley}")
+                        #print(f"processing {tilex}_{tiley}")
                         current_tile = np.array([tilex,tiley])
                         tilecoords = tile_size * current_tile
                         tileuppercoords = tilecoords + tile_size
@@ -189,7 +172,7 @@ def do_slugcat(slugcat: str):
                                     paste_offset[1] = -paste_offset[1]
                                     # bug: despite the docs, paste requires a 4-tuble box, not a simple topleft coordinate
                                     paste_offset = (paste_offset[0], paste_offset[1],paste_offset[0] + camimg.width, paste_offset[1] + camimg.height)
-                                    #log(f"paste_offset is {paste_offset}")
+                                    #print(f"paste_offset is {paste_offset}")
                                     tile.paste(camimg, paste_offset)
                                     camimg.close()
                                 
@@ -198,7 +181,7 @@ def do_slugcat(slugcat: str):
                             tile.save(os.path.join(target, f"{tilex}_{-1 - tiley}.png"), optimize=True)
                             tile.close()
                             tile = None
-            log("done with tiles task",file=output_log.txt)
+            print("done with tiles task")
 
         if task_export_features:
             features = {}
@@ -216,7 +199,7 @@ def do_slugcat(slugcat: str):
 
             bh,bs,bv = colorsys.rgb_to_hsv(bg_col[0]/255.0,bg_col[1]/255.0,bg_col[2]/255.0)
             fh,fs,fv = colorsys.rgb_to_hsv(fg_col[0]/255.0,fg_col[1]/255.0,fg_col[2]/255.0)
-            # find good contrastign color
+            # find good contrasting color
             if abs(bh - fh) < 0.5:
                 if bh < fh:
                     bh += 1
@@ -259,7 +242,7 @@ def do_slugcat(slugcat: str):
                             roomcam_max = np.max([roomcam_max, camcoords + camsize],0)
                         coords = np.array([roomcam_min, (roomcam_min[0], roomcam_max[1]), roomcam_max, (roomcam_max[0], roomcam_min[1]), roomcam_min]).round(3).tolist()
                         popupcoords = (roomcam_max - np.array([((roomcam_max[0] - roomcam_min[0]), 0)])/2).round().tolist()[0] # single coord
-                    #log(f"room {roomname} coords are {coords}")
+                    #print(f"room {roomname} coords are {coords}")
                     room_features.append(geojson.Feature(
                         geometry=geojson.Polygon([coords,]), # poly expect a list containing a list of coords for each continuous edge
                         properties={
@@ -274,10 +257,10 @@ def do_slugcat(slugcat: str):
                 features["connection_features"] = connection_features
                 for conn in connections:
                     if not conn["roomA"] in rooms or not conn["roomB"] in rooms:
-                        log("connection for missing rooms: " + conn["roomA"] + " " + conn["roomB"])
+                        print("connection for missing rooms: " + conn["roomA"] + " " + conn["roomB"])
                         continue
                     if (conn["roomA"],conn["roomB"]) in done or (conn["roomB"],conn["roomA"]) in done:
-                        log("connection repeated for rooms: " + conn["roomA"] + " " + conn["roomB"])
+                        print("connection repeated for rooms: " + conn["roomA"] + " " + conn["roomB"])
                         continue
 
                     coordsA = rooms[conn["roomA"]]["roomcoords"] + np.array(conn["posA"])*20 + center_of_tile
@@ -291,13 +274,14 @@ def do_slugcat(slugcat: str):
 
                         }))
                     done.append((conn["roomA"],conn["roomB"]))
+                ## Need to add section for conditional links
         
             ## Geometry
             if task_export_geo_features and not copyingRooms:
                 geo_features = []
                 features["geo_features"] = geo_features
                 for roomname, room in rooms.items():
-                    log("processing geo for " + roomname)
+                    print("processing geo for " + roomname)
                     if room['size'] is None:
                         # geo_features.append(geojson.Feature(geojson.MultiLineString([])))
                         continue
@@ -455,35 +439,53 @@ def do_slugcat(slugcat: str):
                             "room":roomname
                         }))
         
-            ## Spawns
-            if task_export_spawn_features:
-                spawn_features = []
-                features["spawn_features"] = spawn_features
-                log("creatures task!")
+            ## Creatures
+            if task_export_creatures_features:
+                creatures_features = []
+                features["creatures_features"] = creatures_features
+                # grouping together all lizards, and then centipedes pole mimics, for the corresponding attributes mean and number
+                MeanWhitelist = ("Pink","PinkLizard",
+                                 "Green","GreenLizard",
+                                 "Blue","BlueLizard",
+                                 "Yellow","YellowLizard",
+                                 "White","WhiteLizard",
+                                 "Black","BlackLizard",
+                                 "Cyan","CyanLizard",
+                                 "Red","RedLizard",
+                                 "Caramel","SpitLizard",
+                                 "Strawberry","ZoopLizard", 
+                                 "Eel","EelLizard",
+                                 "Train","TrainLizard")
+                NumberWhitelist = ("PoleMimic","Mimic",
+                                   "SmallCentipede","Centipede","Centi","Cent",
+                                   "Red Centipede","RedCentipede","RedCenti","Red Centi",
+                                   "AquaCenti", "Aqua Centi", "AquaCentipede", "Aqua Centipede", "Aquapede")
+                print("creatures task!")
                 # read spawns, group spawns into dens (dens have a position)
                 dens = {}
-                for spawnentry in regiondata["spawns"]:
+                for spawnentry in regiondata["creatures"]:
                     spawnentry = spawnentry.strip()
                     if not spawnentry:
                         continue
 
-                    if spawnentry.endswith("(X-"):
+                    if spawnentry.startswith("(X-"):
                         # X- means the creature spawns for every slugcat EXCEPT the listed ones. skip if current slugcat is one of those
                         slugcats_without_creature = [str(s.strip()).lower() for s in spawnentry[3:spawnentry.index(")")].split(",") if s.strip()]
                         if len(slugcats_without_creature) > 0 and slugcat.lower() in slugcats_without_creature:
                             continue
                         spawnentry = spawnentry[spawnentry.index(")")+1:]
                     # creature spawns for listed slugcats. skip if current slugcat isn't one of those
-                    elif spawnentry.endswith("("):
+                    elif spawnentry.startswith("("):
                         slugcats_with_creature = [str(s.strip()).lower() for s in spawnentry[1:spawnentry.index(")")].split(",") if s.strip()]
                         if len(slugcats_with_creature) > 0 and slugcat.lower() not in slugcats_with_creature:
                             continue
                         spawnentry = spawnentry[spawnentry.index(")")+1:]
 
                     arr = spawnentry.split(" : ")
+                    ## Lineage-Creatures
                     if arr[0] == "LINEAGE":
                         if len(arr) < 3:
-                            log("faulty spawn! missing stuff: " + spawnentry)
+                            print("faulty spawn! missing stuff: " + spawnentry)
                             continue
                         room_name = arr[1]
                         den_index = arr[2]
@@ -491,75 +493,142 @@ def do_slugcat(slugcat: str):
                             # creature is in a room that doesn't exist for this region
                             continue
                         if room_name != "OFFSCREEN" and len(rooms[room_name]["nodes"]) <= int(den_index):
-                            log("faulty spawn! den index over room nodes: " + spawnentry)
+                            print("faulty spawn! den index over room nodes: " + spawnentry)
                             continue
                         if room_name != "OFFSCREEN":
                             node = rooms[room_name]["nodes"][int(den_index)]
                             tiles = rooms[room_name]["tiles"]
                             if tiles[node[1]][node[0]][2] != 3:
-                                log("faulty spawn! not a den: " + spawnentry)
+                                print("faulty spawn! not a den: " + spawnentry)
                                 continue
 
                         spawn = {}
                         spawn["is_lineage"] = True
                         creature_arr = arr[3].split(", ")
                         spawn["lineage"] = [creature.split("-")[0] for creature in creature_arr]
-                        # TODO read creature attributes
+                        # Lineage Creature attributes
                         spawn["lineage_probs"] = [creature.split("-")[-1] for creature in creature_arr]
                         spawn["creature"] = spawn["lineage"][0]
-                        spawn["amount"] = 1
-                        spawn["pre_cycle"] = "{PreCycle}" in arr[3]
-                        spawn["night"] = "{Night}" in arr[3]
+                        creature_attr = [creature.split("-")[1] for creature in creature_arr]
+                        if arr[3].isdigit():
+                            spawn["amount"] = arr[3]
+                        if "{PreCycle}" in arr[3]:
+                            spawn["pre_cycle"] = "{PreCycle}" in arr[3]
+                        if "{IgnoreCycle}" in arr[3]:
+                            spawn["ignore_cycle"] = "{IgnoreCycle}" in arr[3]
+                        if "{Night}" in arr[3]:
+                            spawn["night"] = "{Night}" in arr[3]
+                        if "{TentacleImmune}" in arr[3]:
+                            spawn["tentacle_immune"] = "{TentacleImmune}" in arr[3]
+                        if "{LavaSafe}" in arr[3]:
+                            spawn["lava_safe"] = "{LavaSafe}" in arr[3]
+                        if "{VoidSea}" in arr[3]:
+                            spawn["void_sea"] = "{VoidSea}" in arr[3]
+                        if "{Winter}" in arr[3]:
+                            spawn["winter"] = "{Winter}" in arr[3]
+                        if "{AlternateForm}" in arr[3]:
+                            spawn["alternate_form"] = "{AlternateForm}" in arr[3]
+                        # Mean
+                        if creature_attr[0].startswith("{Mean:"):
+                            mean = creature_attr[0].strip("{Mean:}")
+                            for Lizard in MeanWhitelist:
+                                if spawn["creature"] == Lizard:
+                                    spawn["mean"] = mean
+                        # Seed
+                        if creature_attr[0].startswith("{Seed:"):
+                            seed = creature_attr[0].strip("{Seed:}")
+                            spawn["seed"] = seed
+                        # Number
+                        elif creature_attr[0].startswith("{"):
+                            number = creature_attr[0].strip("{}")
+                            for Length in NumberWhitelist:
+                                if spawn["creature"] == Length:
+                                    spawn["number"] = number
 
                         denkey = arr[1]+ ":" +arr[2] # room:den
                         if denkey in dens:
-                            dens[denkey]["spawns"].append(spawn)
+                            dens[denkey]["creatures"].append(spawn)
                         else:
-                            dens[denkey] = {"room":arr[1],"den":int(arr[2]),"spawns":[spawn]}
+                            dens[denkey] = {"room":arr[1],"den":int(arr[2]),"creatures":[spawn]}
+                    ## Non-Lineage Creatures
                     else:
                         creature_arr = arr[1].split(", ")
                         room_name = arr[0]
                         for creature_desc in creature_arr:
                             spawn = {}
                             spawn["is_lineage"] = False
-                            spawn["pre_cycle"] = False
-                            spawn["night"] = False
+
                             den_index,spawn["creature"], *attr = creature_desc.split("-")
 
                             if room_name  != "OFFSCREEN" and room_name not in rooms:
                                 # creature is in a room that doesn't exist for this region
                                 continue
                             if room_name  != "OFFSCREEN" and len(rooms[room_name]["nodes"]) <= int(den_index):
-                                log("faulty spawn! den index over room nodes: " + room_name + " : " + creature_desc)
+                                print("faulty spawn! den index over room nodes: " + room_name + " : " + creature_desc)
                                 continue
                             if room_name != "OFFSCREEN":
                                 node = rooms[room_name]["nodes"][int(den_index)]
                                 tiles = rooms[room_name]["tiles"]
                                 if tiles[node[1]][node[0]][2] != 3:
-                                    log("faulty spawn! not a den: " + spawnentry)
+                                    print("faulty spawn! not a den: " + spawnentry)
                                     continue
-                        
-                            spawn["amount"] = 1
+                            
                             if attr:
-                                # TODO read creature attributes
-                                if not attr[-1].endswith("}"):
+                                # TODOne read creature attributes
+                                if not attr[-1].startswith("}"):
                                     try:
                                         spawn["amount"] = int(attr[-1])
                                     except:
-                                        log("amount not specified. first attribute is \"" + attr[-1] + "\" in \"" + room_name + " : " + creature_desc + "\"")
+                                        print("amount not specified. first attribute is \"" + attr[-1] + "\" in \"" + room_name + " : " + creature_desc + "\"")
+                                        spawn["amount"] = 1
+                                if attr[0].isdigit():
+                                    spawn["amount"] = attr[0]
+                                elif attr[-1].isdigit():
+                                    spawn["amount"] = attr[-1]
                                 if "{PreCycle}" in attr:
                                     spawn["pre_cycle"] = True
+                                if "{IgnoreCycle}" in attr:
+                                    spawn["ignore_cycle"] = True
                                 if "{Night}" in attr:
                                     spawn["night"] = True
+                                if "{TentacleImmune}" in attr:
+                                    spawn["tentacle_immune"] = True
+                                if "{LavaSafe}" in attr:
+                                    spawn["lava_safe"] = True
+                                if "{VoidSea}" in attr:
+                                    spawn["void_sea"] = True
+                                if "{Winter}" in attr:
+                                    spawn["winter"] = True
+                                if "{AlternateForm}" in attr:
+                                    spawn["alternate_form"] = True
+                                # Mean
+                                if attr[0].startswith("{Mean:") in attr:
+                                    mean = attr[0].strip("{Mean:}")
+                                    for Lizard in MeanWhitelist:
+                                        if spawn["creature"] == Lizard:
+                                            if "{Mean:" + mean + "}" in attr:
+                                                spawn["mean"] = mean
+                                # Seed
+                                if attr[0].startswith("{Seed:") in attr:
+                                    seed = attr[0].strip("{Seed:}")
+                                    if "{Seed:" + seed + "}" in attr:
+                                        spawn["seed"] = seed
+                                # Number
+                                elif attr[0].startswith("{") in attr:
+                                    number = attr[0].strip("{}")
+                                    for Length in NumberWhitelist:
+                                        if spawn["creature"] == Length:
+                                            if "{" + number + "}" in attr:
+                                                spawn["number"] = number
 
                             if spawn["creature"] == "Spider 10": ## Bruh...
-                                log("faulty spawn! stupid spiders: " + room_name + " : " + creature_desc)
+                                print("faulty spawn! stupid spiders: " + room_name + " : " + creature_desc)
                                 continue ## Game doesnt parse it, so wont I
                             denkey = room_name+ ":" +den_index # room:den
                             if denkey in dens:
-                                dens[denkey]["spawns"].append(spawn)
+                                dens[denkey]["creatures"].append(spawn)
                             else:
-                                dens[denkey] = {"room":room_name,"den":int(den_index),"spawns":[spawn]}
+                                dens[denkey] = {"room":room_name,"den":int(den_index),"creatures":[spawn]}
                 ## process dens into features
                 for _,den in dens.items():
                     if den["room"] == "OFFSCREEN":
@@ -568,25 +637,314 @@ def do_slugcat(slugcat: str):
                     else:
                         room = rooms[den["room"]]
                         dencoords = room['roomcoords'] + center_of_tile + 20* np.array(room['nodes'][den["den"]])
-                    spawn_features.append(geojson.Feature(
+                    creatures_features.append(geojson.Feature(
                         geometry=geojson.Point(np.array(dencoords).round().tolist()),
                         properties=den))
 
-                log("creatures task done!")
+                print("creatures task done!")
 
-            ##Objects
+            ## Placed Objects
             if task_export_placedobject_features:
                 placedobject_features = []
                 features["placedobject_features"] = placedobject_features
-                log("placed object task!")
+                worldName = regiondata["acronym"].lower()
+                mergedmods = "C:\Program Files (x86)\Steam\steamapps\common\Rain World\RainWorld_Data\StreamingAssets\mergedmods\world"
+                msc = "C:\Program Files (x86)\Steam\steamapps\common\Rain World\RainWorld_Data\StreamingAssets\mods\moreslugcats\world"
+                vanilla = "C:\Program Files (x86)\Steam\steamapps\common\Rain World\RainWorld_Data\StreamingAssets\world"
+                worlds = (mergedmods, msc, vanilla)
+                world = msc
+                roomobject = {} # the individual object in a room
+                print("starting placed object task!")
+                # for each room, resolve the exact file path so that it can be referenced and read later
+                for roomname, room in rooms.items():
+                    roomName = room['roomName'].lower()
+                    if roomName.startswith("offscreen"):
+                        print(roomName + " is an offscreen room: Skipping!")
+                        continue
 
-                log("placed object task done!")
+                    room['roomcoords'] = np.array(room['devPos']) * 10 # map coord to room px coords
+                    # this whole thing needs optimized, but that is a later task, after the fact for when it works - 7/11/2023: it works now! :)
+                    def fileresolver(roomName):
+                        print("Running File Resolver...")
+                        # for gate rooms
+                        if roomName.startswith("gate"):
+                            # capture slugcat-specific gate settings
+                            # start at msc
+                            path = world + "\gates\\" + roomName + "_settings-" + slugcat + ".txt"
+                            if (os.path.exists(path)):
+                                mscsg = True
+                                print("Found Specific Gate settings for " + slugcat + "\\" + roomName + " at " + path)
+                                if os.path.exists(mergedmods + "\gates\\" + os.path.basename(path)) and os.path.exists(vanilla + "\gates\\" + os.path.basename(path)):
+                                    print("Duplicates Found within mergedmods and vanilla")
+                                    mergedmodspath = mergedmods + "\gates\\" + os.path.basename(path)
+                                    roomnamepathpair = (roomName,mergedmodspath)
+                                    print("Returning the mergedmodspath!")
+                                    return roomnamepathpair
+                                elif os.path.exists(mergedmods + "\gates\\" + os.path.basename(path)) and os.path.exists(msc + "\gates\\" + os.path.basename(path)):
+                                    print("Duplicates Found within mergedmods and msc")
+                                    mergedmodspath = mergedmods + "\gates\\" + os.path.basename(path)
+                                    roomnamepathpair = (roomName,mergedmodspath)
+                                    print("Returning the mergedmodspath!")
+                                    return roomnamepathpair
+                                elif os.path.exists(msc + "\gates\\" + os.path.basename(path)) and os.path.exists(vanilla + "\gates\\" + os.path.basename(path)):
+                                    print("Duplicates Found within msc and vanilla")
+                                    mscpath = msc + "\gates\\" + os.path.basename(path)
+                                    roomnamepathpair = (roomName,mscpath)
+                                    print("Returning the mscpath!")
+                                    return roomnamepathpair
+                                else:
+                                    print("No Conflicting Duplicates found within the other world files")
+                                    roomnamepathpair = (roomName,path)
+                                    print("Returning the mscpath!")
+                                    return roomnamepathpair
+                            else:
+                                # check the other world folders
+                                mmsg = False
+                                vsg = False
+                                #print("No Specific Gate settings for " + slugcat + "\\" + roomName + " at " + path)
+                                if os.path.exists(mergedmods + "\gates\\" + os.path.basename(path)):
+                                    mergedmodspath = mergedmods + "\gates\\" + os.path.basename(path)
+                                    mmsg = True
+                                    print("Found Specific Gate settings for " + slugcat + "\\" + roomName + " at " + mergedmodspath + " INSTEAD!")
+                                if os.path.exists(vanilla + "\gates\\" + os.path.basename(path)):
+                                    vanillapath = vanilla + "\gates\\" + os.path.basename(path)
+                                    vsg = True
+                                    print("Found Specific Gate settings for " + slugcat + "\\" + roomName + " at " + vanillapath + " INSTEAD!")
+                                if mmsg and vsg:
+                                    roomnamepathpair = (roomName,mergedmodspath)
+                                    print("Returning the mergedmodspath!")
+                                    return roomnamepathpair
+                                elif mmsg:
+                                    roomnamepathpair = (roomName,mergedmodspath)
+                                    print("Returning the mergedmodspath!")
+                                    return roomnamepathpair
+                                elif vsg:
+                                    roomnamepathpair = (roomName,vanillapath)
+                                    print("Returning the vanillapath!")
+                                    return roomnamepathpair
 
-            ##RoomTags
+                                # capture generic gate settings
+                                path = world + "\gates\\" + roomName + "_settings.txt"
+                                if (os.path.exists(path)):
+                                    mscgg = True
+                                    print("Found Generic Gate settings for " + slugcat + "\\" + roomName + " at " + path)
+                                    if os.path.exists(mergedmods + "\gates\\" + os.path.basename(path)) and os.path.exists(vanilla + "\gates\\" + os.path.basename(path)):
+                                        print("Duplicates Found within mergedmods and vanilla")
+                                        mergedmodspath = mergedmods + "\gates\\" + os.path.basename(path)
+                                        roomnamepathpair = (roomName,mergedmodspath)
+                                        print("Returning the mergedmodspath!")
+                                        return roomnamepathpair
+                                    elif os.path.exists(mergedmods + "\gates\\" + os.path.basename(path)) and os.path.exists(msc + "\gates\\" + os.path.basename(path)):
+                                        print("Duplicates Found within mergedmods and msc")
+                                        mergedmodspath = mergedmods + "\gates\\" + os.path.basename(path)
+                                        roomnamepathpair = (roomName,mergedmodspath)
+                                        print("Returning the mergedmodspath!")
+                                        return roomnamepathpair
+                                    elif os.path.exists(msc + "\gates\\" + os.path.basename(path)) and os.path.exists(vanilla + "\gates\\" + os.path.basename(path)):
+                                        print("Duplicates Found within msc and vanilla")
+                                        mscpath = msc + "\gates\\" + os.path.basename(path)
+                                        roomnamepathpair = (roomName,mscpath)
+                                        print("Returning the mscpath!")
+                                        return roomnamepathpair
+                                    else:
+                                        print("No Conflicting Duplicates found within the other world files")
+                                        roomnamepathpair = (roomName,path)
+                                        print("Returning the mscpath!")
+                                        return roomnamepathpair
+                                else:
+                                    mmgg = False
+                                    vgg = False
+                                    #print("No Generic Gate settings for " + slugcat + "\\" + roomName + " at " + path)
+                                    if os.path.exists(mergedmods + "\gates\\" + os.path.basename(path)):
+                                        mergedmodspath = mergedmods + "\gates\\" + os.path.basename(path)
+                                        mmgg = True
+                                        print("found Generic Gate settings for " + slugcat + "\\" + roomName + " at " + mergedmodspath + " INSTEAD!")
+                                    if os.path.exists(vanilla + "\gates\\" + os.path.basename(path)):
+                                        vanillapath = vanilla + "\gates\\" + os.path.basename(path)
+                                        vgg = True
+                                        print("Found Generic Gate settings for " + slugcat + "\\" + roomName + " at " + vanillapath + " INSTEAD!")
+                                    if mmgg and vgg:
+                                        roomnamepathpair = (roomName,mergedmodspath)
+                                        print("Returning the mergedmodspath!")
+                                        return roomnamepathpair
+                                    elif mmgg:
+                                        roomnamepathpair = (roomName,mergedmodspath)
+                                        print("Returning the mergedmodspath!")
+                                        return roomnamepathpair
+                                    elif vgg:
+                                        roomnamepathpair = (roomName,vanillapath)
+                                        print("Returning the vanillapath!")
+                                        return roomnamepathpair
+                        # for non gate (normal) rooms
+                        else:
+                            # capture slugcat-specific room settings
+                            path = world + "\\" + worldName + "-rooms\\" + roomName + "_settings-" + slugcat + ".txt"
+                            if (os.path.exists(path)):
+                                mscsr = True
+                                print("Found Specific Room settings for " + slugcat + "\\" + roomName + " at " + path)
+                                if os.path.exists(mergedmods + "\\" + worldName + "-rooms\\" + os.path.basename(path)) and os.path.exists(vanilla + "\\" + worldName + "-rooms\\" + os.path.basename(path)):
+                                    print("Duplicates Found within mergedmods and vanilla")
+                                    mergedmodspath = mergedmods + "\\" + worldName + "-rooms\\" + os.path.basename(path)
+                                    roomnamepathpair = (roomName,mergedmodspath)
+                                    print("Returning the mergedmodspath!")
+                                    return roomnamepathpair
+                                elif os.path.exists(mergedmods + "\\" + worldName + "-rooms\\" + os.path.basename(path)) and os.path.exists(msc + "\\" + worldName + "-rooms\\" + os.path.basename(path)):
+                                    print("Duplicates Found within mergedmods and msc")
+                                    mergedmodspath = mergedmods + "\\" + worldName + "-rooms\\" + os.path.basename(path)
+                                    roomnamepathpair = (roomName,mergedmodspath)
+                                    print("Returning the mergedmodspath!")
+                                    return roomnamepathpair
+                                elif os.path.exists(msc + "\\" + worldName + "-rooms\\" + os.path.basename(path)) and os.path.exists(vanilla + "\\" + worldName + "-rooms\\" + os.path.basename(path)):
+                                    print("Duplicates Found within msc and vanilla")
+                                    mscpath = msc + "\\" + worldName + "-rooms\\" + os.path.basename(path)
+                                    roomnamepathpair = (roomName,mscpath)
+                                    print("Returning the mscpath!")
+                                    return roomnamepathpair
+                                else:
+                                    print("No Conflicting Duplicates found within the other world files")
+                                    roomnamepathpair = (roomName,path)
+                                    print("Returning the mscpath!")
+                                    return roomnamepathpair
+                            else:
+                                mmsr = False
+                                vsr = False
+                                #print("No Specific Room settings for " + slugcat + "\\" + roomName + " at " + path)
+                                if os.path.exists(mergedmods + "\\" + worldName +"-rooms\\" + os.path.basename(path)):
+                                    mergedmodspath = mergedmods + "\\" + worldName +"-rooms\\" + os.path.basename(path)
+                                    mmsr = True
+                                    print("Found Specific Room settings for " + slugcat + "\\" + roomName + " at " + mergedmodspath + " INSTEAD!")
+                                if os.path.exists(vanilla + "\\" + worldName +"-rooms\\" + os.path.basename(path)):
+                                    vanillapath = vanilla + "\\" + worldName +"-rooms\\" + os.path.basename(path)
+                                    vsr = True
+                                    print("Found Specific Room settings for " + slugcat + "\\" + roomName + " at " + vanillapath + " INSTEAD!")
+                                if mmsr and vsr:
+                                    roomnamepathpair = (roomName,mergedmodspath)
+                                    print("Returning the mergedmodspath!")
+                                    return roomnamepathpair
+                                elif mmsr:
+                                    roomnamepathpair = (roomName,mergedmodspath)
+                                    print("Returning the mergedmodspath!")
+                                    return roomnamepathpair
+                                elif vsr:
+                                    roomnamepathpair = (roomName,vanillapath)
+                                    print("Returning the vanillapath!")
+                                    return roomnamepathpair
+
+                                # capture generic room settings
+                                path = world + "\\" + worldName + "-rooms\\" + roomName + "_settings.txt"
+                                if (os.path.exists(path)):
+                                    mscgr = True
+                                    print("Found Generic Room settings for " + slugcat + "\\" + roomName + " at " + path)
+                                    if os.path.exists(mergedmods + "\\" + worldName + "-rooms\\" + os.path.basename(path)) and os.path.exists(vanilla + "\\" + worldName + "-rooms\\" + os.path.basename(path)):
+                                        print("Duplicates found within mergedmods and vanilla")
+                                        mergedmodspath = mergedmods + "\\" + worldName + "-rooms\\" + os.path.basename(path)
+                                        roomnamepathpair = (roomName,mergedmodspath)
+                                        print("Returning the mergedmodspath!")
+                                        return roomnamepathpair
+                                    elif os.path.exists(mergedmods + "\\" + worldName + "-rooms\\" + os.path.basename(path)) and os.path.exists(msc + "\\" + worldName + "-rooms\\" + os.path.basename(path)):
+                                        print("Duplicates found within mergedmods and msc")
+                                        mergedmodspath = mergedmods + "\\" + worldName + "-rooms\\" + os.path.basename(path)
+                                        roomnamepathpair = (roomName,mergedmodspath)
+                                        print("Returning the mergedmodspath!")
+                                        return roomnamepathpair
+                                    elif os.path.exists(msc + "\\" + worldName + "-rooms\\" + os.path.basename(path)) and os.path.exists(vanilla + "\\" + worldName + "-rooms\\" + os.path.basename(path)):
+                                        print("Duplicates found within msc and vanilla")
+                                        mscpath = msc + "\\" + worldName + "-rooms\\" + os.path.basename(path)
+                                        roomnamepathpair = (roomName,mscpath)
+                                        print("Returning the mscpath!")
+                                        return roomnamepathpair
+                                    else:
+                                        print("No Conflicting Duplicates found within the other world files")
+                                        roomnamepathpair = (roomName,path)
+                                        print("Returning the mscpath!")
+                                        return roomnamepathpair
+                                else:
+                                    mmgr = False
+                                    vgr = False
+                                    #print("No Generic Room settings for " + slugcat + "\\" + roomName + " at " + path)
+                                    if os.path.exists(mergedmods + "\\" + worldName +"-rooms\\" + os.path.basename(path)):
+                                        mergedmodspath = mergedmods + "\\" + worldName +"-rooms\\" + os.path.basename(path)
+                                        mmgr = True
+                                        print("Found Generic Room settings for " + slugcat + "\\" + roomName + " at " + mergedmodspath + " INSTEAD!")
+                                    if os.path.exists(vanilla + "\\" + worldName +"-rooms\\" + os.path.basename(path)):
+                                        vanillapath = vanilla + "\\" + worldName +"-rooms\\" + os.path.basename(path)
+                                        vgr = True
+                                        print("Found Generic Room settings for " + slugcat + "\\" + roomName + " at " + vanillapath + " INSTEAD!")
+                                    if mmgr and vgr:
+                                        roomnamepathpair = (roomName,mergedmodspath)
+                                        print("Returning the mergedmodspath!")
+                                        return roomnamepathpair
+                                    elif mmgr:
+                                        roomnamepathpair = (roomName,mergedmodspath)
+                                        print("Returning the mergedmodspath!")
+                                        return roomnamepathpair
+                                    elif vgr:
+                                        roomnamepathpair = (roomName,vanillapath)
+                                        print("Returning the vanillapath!")
+                                        return roomnamepathpair
+                        print("File Resolver fucking DONE!")
+                    if fileresolver(roomName) == None:
+                        continue
+
+                    (roomname,path) = fileresolver(roomName)
+
+                    # convert each settings file into a list of placed objects
+                    with open(path, 'r', encoding="utf-8") as f:
+                        readall = f.readlines()
+                        hasplacedobjects = False
+                        insideofplacedobjects = False
+                        for readline in readall:
+                            if (readline.startswith("PlacedObjects: ")):
+                                insideofplacedobjects = True;
+                                hasplacedobjects = True
+                                rawplacedobjects = readline
+                            elif (not readline.startswith("PlacedObjects: ")):
+                                insideofplacedobjects = False;
+                            elif (insideofplacedobjects):
+                                rawplacedobjects = readline
+                        if not hasplacedobjects:
+                            print("No Placed Objects in " + roomName + ", Skipping!")
+                            continue
+
+                    rawplacedobjects = str(rawplacedobjects).partition(": ")[-1].rstrip(", \n")
+                    listplacedobjects = rawplacedobjects.split(", ")
+
+                    for roomobject in listplacedobjects:
+                        if len(roomobject) <= 3:
+                            print("object is a stub, skipping")
+                            continue
+                        elif "><" not in roomobject:
+                            print("Object " + roomobject + ' does not contain "><" value delimiters, ')
+                            roomobject = {
+                                "room":roomName,
+                                "borkeddata":roomobject
+                                }
+                            placedobject_features.append(roomobject)
+                        else:
+                            objectentry = roomobject.split("><")
+                            objectname = objectentry[0]
+                            objectposx = objectentry[1]
+                            objectposy = objectentry[2]
+                            objectdata = objectentry[3]
+
+                            roomobject = {
+                                "room":roomName,
+                                "object":objectname,
+                                "data":objectdata
+                                }
+
+                            objectcoords = room['roomcoords'] + center_of_tile + 20* np.array([float(objectposx),float(objectposy)])
+                            placedobject_features.append(geojson.Feature(
+                                geometry=geojson.Point(np.array(objectcoords).round().tolist()),
+                                properties=roomobject))
+                # were it so easy
+                print("placed object task done!")
+
+            ## RoomTags
             if task_export_roomtag_features:
                 roomtag_features = []
                 features["roomtag_features"] = roomtag_features
-                log("room tag task!")
+                print("room tag task!")
                 for roomentry in regiondata["roomTags"]:
                     roomentry = roomentry.strip()
                     roomname = roomentry.partition(" : ")
@@ -598,55 +956,55 @@ def do_slugcat(slugcat: str):
                     elif roomentry.endswith("GATE"):
                         roomname = roomname[0]
                         roomtag = roomtag[2]
-                        log("tagged " + roomname + " as " + roomtag)
+                        print("tagged " + roomname + " as " + roomtag)
                         if len(roomname) > 0 and slugcat.lower() in roomname:
                             continue
                     elif roomentry.endswith("SWARMROOM"):
                         roomname = roomname[0]
                         roomtag = roomtag[2]
-                        log("tagged " + roomname + " as " + roomtag)
+                        print("tagged " + roomname + " as " + roomtag)
                         if len(roomname) > 0 and slugcat.lower() in roomname:
                             continue
                     elif roomentry.endswith("SHELTER"):
                         roomname = roomname[0]
                         roomtag = roomtag[2]
-                        log("tagged " + roomname + " as " + roomtag)
+                        print("tagged " + roomname + " as " + roomtag)
                         if len(roomname) > 0 and slugcat.lower() in roomname:
                             continue
                     elif roomentry.endswith("ANCIENTSHELTER"):
                         roomname = roomname[0]
                         roomtag = roomtag[2]
-                        log("tagged " + roomname + " as " + roomtag)
+                        print("tagged " + roomname + " as " + roomtag)
                         if len(roomname) > 0 and slugcat.lower() in roomname:
                             continue
                     elif roomentry.endswith("SCAVOUTPOST"):
                         roomname = roomname[0]
                         roomtag = roomtag[2]
-                        log("tagged " + roomname + " as " + roomtag)
+                        print("tagged " + roomname + " as " + roomtag)
                         if len(roomname) > 0 and slugcat.lower() in roomname:
                             continue
                     elif roomentry.endswith("SCAVTRADER"):
                         roomname = roomname[0]
                         roomtag = roomtag[2]
-                        log("tagged " + roomname + " as " + roomtag)
+                        print("tagged " + roomname + " as " + roomtag)
                         if len(roomname) > 0 and slugcat.lower() in roomname:
                             continue
                     elif roomentry.endswith("PERF_HEAVY"):
                         roomname = roomname[0]
                         roomtag = roomtag[2]
-                        log("tagged " + roomname + " as " + roomtag)
+                        print("tagged " + roomname + " as " + roomtag)
                         if len(roomname) > 0 and slugcat.lower() in roomname:
                             continue
                     elif roomentry.endswith("NOTRACKERS"):
                         roomname = roomname[0]
                         roomtag = roomtag[2]
-                        log("tagged " + roomname + " as " + roomtag)
+                        print("tagged " + roomname + " as " + roomtag)
                         if len(roomname) > 0 and slugcat.lower() in roomname:
                             continue
                     elif roomentry.endswith("ARENA"):
                         roomname = roomname[0]
                         roomtag = roomtag[2]
-                        log("tagged " + roomname + " as " + roomtag)
+                        print("tagged " + roomname + " as " + roomtag)
                         if len(roomname) > 0 and slugcat.lower() in roomname:
                             continue
                     else:
@@ -657,42 +1015,47 @@ def do_slugcat(slugcat: str):
                             "roomname":roomname,
                             "tag":roomtag
                         }))
-                log("room tag task done!")
+                print("room tag task done!")
            
             ##Shortcuts
             if task_export_shortcut_features:
                 shortcut_features = []
                 features["shortcut_features"] = shortcut_features
-                log("shortcut task!")
-                log("shortcuts task done!")
+                print("starting shortcut task!")
+                print("shortcuts task done!")
 
             ##Bat Migration Blockages
             if task_export_batmigrationblockages_features:
                 batmigrationblockages_features = []
                 features["batmigrationblockages_features"] = batmigrationblockages_features
-                log("bat migration blockages task!")
-                log("bat migration blockages task done!")
+                print("starting bat migration blockages task!")
+                for blockageentry in regiondata["batMigration"]:
+                    if not blockageentry:
+                        print("no bat migration entries for current region")
+                        blockageentry = ""
+                        continue
 
-            ##Conditional Links
-            if task_export_conditionallinks_features:
-                conditionallinks_features = []
-                features["conditionallinks_features"] = conditionallinks_features
-                log("conditional links task!")
-                log("conditional links task done!")
+                    print("bat migration is blocked for room " + blockageentry)
+                    batmigrationblockages_features.append(geojson.Feature(
+                        properties = {
+                        "blockedrooms":blockageentry
+                        }))
+                print("bat migration blockages task done!")
 
+            ## End
             target = os.path.join(output_folder, slugcat, entry.name)
             if not os.path.exists(target):
                 os.makedirs(target, exist_ok=True)
             with open(os.path.join(target, "region.json"), 'w') as myout:
                 json.dump(features,myout)
-            log("done with features task")
+            print("done with features task")
 
-        log("Region done! " + entry.name)
+        print("Region done! " + entry.name)
 
-    log("Slugcat done! " + slugcat)
+    print("Slugcat done! " + slugcat)
 
 os.makedirs(output_folder, exist_ok=True)
-# os.makefile(output_log, exist_oke=True)
+# os.makefile(output_log, exist_ok=True)
 
 # Copy slugcats.json
 with open(os.path.join(screenshots_root, "slugcats.json"), "r") as slugcats_from:
@@ -704,6 +1067,6 @@ for slugcat_entry in os.scandir(screenshots_root):
     if slugcat_entry.is_dir():
         do_slugcat(slugcat_entry.name)
 
-log("Done!")
-# output_log.write(log().read)
+print("Done!")
+# output_log.write(print().read)
 s = input()

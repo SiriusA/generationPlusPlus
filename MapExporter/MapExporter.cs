@@ -10,6 +10,8 @@ using BepInEx.Logging;
 using System.Text.RegularExpressions;
 using System.Reflection;
 using System;
+using MoreSlugcats;
+using JollyCoop;
 
 #pragma warning disable CS0618 // Type or member is obsolete
 [assembly: SecurityPermission(SecurityAction.RequestMinimum, SkipVerification = true)]
@@ -23,7 +25,7 @@ public class MapExporter : BaseUnityPlugin
     
     // Config
     
-    string[] CaptureSpecific = { }; // For example, "White;SU" loads Outskirts as Survivor
+    string[] CaptureSpecific = {}; // For example, "White;SU" loads Outskirts as Survivor
     bool Screenshots = true;
 
     static readonly Dictionary<string, int[]> CameraBlacklist = new()
@@ -41,7 +43,7 @@ public class MapExporter : BaseUnityPlugin
         internal static Configurable<bool> screenshots;
         internal static Configurable<string> cameraBlacklist;
 
-      //  string CaptureSpecific;
+       // string CaptureSpecific;
        // bool Screenshots;
        // string CameraBlacklist;
    
@@ -277,12 +279,11 @@ public class MapExporter : BaseUnityPlugin
             if (item.type == PlacedObject.Type.InsectGroup) item.active = false;
             if (item.type == PlacedObject.Type.FlyLure
                 || item.type == PlacedObject.Type.JellyFish) self.waitToEnterAfterFullyLoaded = Mathf.Max(self.waitToEnterAfterFullyLoaded, 20);
-
         }
         orig(self);
     }
 
-    // no orcacles
+    // no oracles
     private void Room_ReadyForAI(On.Room.orig_ReadyForAI orig, Room self)
     {
         string oldname = self.abstractRoom.name;
@@ -391,6 +392,10 @@ public class MapExporter : BaseUnityPlugin
     {
         return $"{Path.Combine(PathOfRegion(slugcat, region), room.ToLower())}_{num}.png";
     }
+    public static bool BlacklistedSlugcats(SlugcatStats.Name i)
+	{
+		return i == SlugcatStats.Name.Night || (ModManager.MSC && i == MoreSlugcatsEnums.SlugcatStatsName.Slugpup) || (ModManager.JollyCoop && i == JollyEnums.Name.JollyPlayer1) || (ModManager.JollyCoop && i == JollyEnums.Name.JollyPlayer2) || (ModManager.JollyCoop && i == JollyEnums.Name.JollyPlayer3) || (ModManager.JollyCoop && i == JollyEnums.Name.JollyPlayer4);
+	}
 
     private static int ScugPriority(string slugcat)
     {
@@ -437,8 +442,8 @@ public class MapExporter : BaseUnityPlugin
             // Iterate over each region on each slugcat
             foreach (string slugcatName in SlugcatStats.Name.values.entries.OrderByDescending(ScugPriority)) {
                 SlugcatStats.Name slugcat = new(slugcatName);
-
-                if (SlugcatStats.HiddenOrUnplayableSlugcat(slugcat)) {
+                // Skips over Night, Slugpup, JollyPlayer1, JollyPlayer2, JollyPlayer3, JollyPlayer4
+                if (BlacklistedSlugcats(slugcat)) {
                     continue;
                 }
 
