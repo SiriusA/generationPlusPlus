@@ -25,7 +25,7 @@ public class MapExporter : BaseUnityPlugin
     
     // Config
     
-    string[] CaptureSpecific = {}; // For example, "White;SU" loads Outskirts as Survivor
+    string[] CaptureSpecific = {"Inv:SU","Inv:DS","Inv:CC","Inv:HI","Inv:GW","Inv;SL","Inv:SH","Inv:UW","Inv:SB","Inv:LF","Inv:SI","Inv;VS"}; // For example, "White;SU" loads Outskirts as Survivor
     bool Screenshots = true;
 
     static readonly Dictionary<string, int[]> CameraBlacklist = new()

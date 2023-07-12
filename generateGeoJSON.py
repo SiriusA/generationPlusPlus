@@ -36,20 +36,20 @@ output_folder = "./py-output"
 optimize_geometry = True
 skip_existing_tiles = False
 # None, "yellow, white, red, gourmand, artificer, rivulet, spear, saint, inv", "yellow", "yellow, white, red"
-only_slugcat = None
+only_slugcat = "inv"
 # None, "cc", "cc, su, ss, sb, sh"
 only_region = None
 
 task_export_tiles = False
 task_export_features = True
-task_export_room_features = False
-task_export_connection_features = False
-task_export_geo_features = False
-task_export_creatures_features = False
+task_export_room_features = True
+task_export_connection_features = True
+task_export_geo_features = True
+task_export_creatures_features = True
 task_export_placedobject_features = True
-task_export_roomtag_features = False
-task_export_shortcut_features = False
-task_export_batmigrationblockages_features = False
+task_export_roomtag_features = True
+task_export_shortcut_features = True
+task_export_batmigrationblockages_features = True
 
 def do_slugcat(slugcat: str):
     if only_slugcat is not None and only_slugcat != slugcat:
@@ -654,6 +654,7 @@ def do_slugcat(slugcat: str):
                 worlds = (mergedmods, msc, vanilla)
                 world = msc
                 roomobject = {} # the individual object in a room
+                placedobjectrooms = {} # the collection of objects in each room
                 print("starting placed object task!")
                 # for each room, resolve the exact file path so that it can be referenced and read later
                 for roomname, room in rooms.items():
@@ -937,6 +938,7 @@ def do_slugcat(slugcat: str):
                             placedobject_features.append(geojson.Feature(
                                 geometry=geojson.Point(np.array(objectcoords).round().tolist()),
                                 properties=roomobject))
+
                 # were it so easy
                 print("placed object task done!")
 
