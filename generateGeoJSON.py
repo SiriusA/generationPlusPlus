@@ -36,20 +36,20 @@ output_folder = "./py-output"
 optimize_geometry = True
 skip_existing_tiles = False
 # None, "yellow, white, red, gourmand, artificer, rivulet, spear, saint, inv", "yellow", "yellow, white, red"
-only_slugcat = "inv"
+only_slugcat = "white"
 # None, "cc", "cc, su, ss, sb, sh"
-only_region = None
+only_region = "cc"
 
 task_export_tiles = False
 task_export_features = True
-task_export_room_features = True
-task_export_connection_features = True
-task_export_geo_features = True
-task_export_creatures_features = True
-task_export_placedobject_features = True
-task_export_roomtag_features = True
+task_export_room_features = False
+task_export_connection_features = False
+task_export_geo_features = False
+task_export_creatures_features = False
+task_export_placedobject_features = False
+task_export_roomtag_features = False
 task_export_shortcut_features = True
-task_export_batmigrationblockages_features = True
+task_export_batmigrationblockages_features = False
 
 def do_slugcat(slugcat: str):
     if only_slugcat is not None and only_slugcat != slugcat:
@@ -580,7 +580,7 @@ def do_slugcat(slugcat: str):
                                         spawn["amount"] = int(attr[-1])
                                     except:
                                         print("amount not specified. first attribute is \"" + attr[-1] + "\" in \"" + room_name + " : " + creature_desc + "\"")
-                                        spawn["amount"] = 1
+                                        spawn["amount"] = "1" # this needs to be a string, not an integer, otherwise it will be interpreted as undefined by the map
                                 if attr[0].isdigit():
                                     spawn["amount"] = attr[0]
                                 elif attr[-1].isdigit():
@@ -883,7 +883,7 @@ def do_slugcat(slugcat: str):
                                         roomnamepathpair = (roomName,vanillapath)
                                         print("Returning the vanillapath!")
                                         return roomnamepathpair
-                        print("File Resolver fucking DONE!")
+                        print("File Resolver DONE!")
                     if fileresolver(roomName) == None:
                         continue
 
@@ -938,11 +938,11 @@ def do_slugcat(slugcat: str):
                             placedobject_features.append(geojson.Feature(
                                 geometry=geojson.Point(np.array(objectcoords).round().tolist()),
                                 properties=roomobject))
-
                 # were it so easy
                 print("placed object task done!")
 
             ## RoomTags
+            # Needs to be optimized / rewritten; rooms with no tags can be skipped
             if task_export_roomtag_features:
                 roomtag_features = []
                 features["roomtag_features"] = roomtag_features
@@ -1023,10 +1023,115 @@ def do_slugcat(slugcat: str):
             if task_export_shortcut_features:
                 shortcut_features = []
                 features["shortcut_features"] = shortcut_features
+                worldName = regiondata["acronym"].lower()
+                mergedmodsprefix = "C:\Program Files (x86)\Steam\steamapps\common\Rain World\RainWorld_Data\StreamingAssets\mergedmods\world"
+                mscprefix = "C:\Program Files (x86)\Steam\steamapps\common\Rain World\RainWorld_Data\StreamingAssets\mods\moreslugcats\world"
+                vanillaprefix = "C:\Program Files (x86)\Steam\steamapps\common\Rain World\RainWorld_Data\StreamingAssets\world"
+                mergedmodspath = ""
+                vanillapath = ""
+                mscpath = ""
+                ismergedmods = False
+                ismsc = False
+                isvanilla = False
+                worldsources = ([mergedmodsprefix,"MergedMods",ismergedmods,mergedmodspath],[mscprefix,"MSC",ismsc,mscpath],[vanillaprefix,"Vanilla",isvanilla,vanillapath])
                 print("starting shortcut task!")
+                for roomname, room in rooms.items():
+                    roomName = room['roomName'].lower()
+                    room['roomcoords'] = np.array(room['devPos']) * 10 # map coord to room px coords
+
+                    if roomName.startswith("offscreen"): # or roomName.startswith("gate")
+                        print("Offscreen rooms do not have shortcuts: Skipping " + roomName + "!")
+                        continue
+
+                    # redundant and blatant plagarism of my placed objects code, oh well...
+                    # No need to capture the isolated gate shelters within the vanilla world file, its not like they contain shortcuts '\_:\_/'
+
+                    def fileresolver(roomName):
+                        # check for gate rooms, not that they have shortcuts... :(
+                        if roomName.startswith("gate"):
+                            subfolder = "\gates\\"
+                        else:
+                            subfolder = "\\" + worldName + "-rooms\\"
+
+                        # read and write which world sources a room is found in
+                        pathdata = worldsources
+                        for worldsource in pathdata:
+                            workingpath = worldsource[0] + subfolder + roomName + ".txt"
+                            if (os.path.exists(workingpath)):
+                                print("Found " + roomName + " in " + worldsource[1])
+                                worldsource[2] = True
+                                worldsource[3] = workingpath
+
+                        # use mergedmods first
+                        if not pathdata[0][2]:
+                            # use msc second
+                            if not pathdata[1][2]:
+                                # vanilla is last priority
+                                if not pathdata[2][2]:
+                                    print(roomName + " is not in any world file")
+                                else:
+                                    resolvedpath = pathdata[2][3]
+                            else:
+                                resolvedpath = pathdata[1][3]
+                        else:
+                            resolvedpath = pathdata[0][3]
+
+                        if resolvedpath:
+                            print("Using " + resolvedpath)
+                            return resolvedpath
+
+                    path = fileresolver(roomName)
+
+                    with open(path, 'r', encoding="utf-8") as f:
+                        roomfile = f.readlines()
+
+                        if len(roomfile) == 12:
+                            shortcutline = 10
+                        elif len(roomfile) == 8:
+                            shortcutline = 6
+
+
+                        i = 1
+                        while i < shortcutline:
+                            for line in roomfile:
+                                if i == shortcutline:
+                                    print("this is line " + str(i) + ":")
+                                    connectionsmap = line
+                                    print(line)
+
+                                i += 1
+
+                        a = str(connectionsmap).rstrip(",|\n")
+                        b = a.split("|")
+                        for entries in b:
+                            c = b.split(",")
+                            entryheader = {
+                                "type":c[0],
+                                "shortcutlength":c[1],
+                                "submerged":c[2],
+                                "viewedbycamera":c[3],
+                                "entrancewidth":c[4]
+                                }
+                            e = 5
+                            conn = []
+                            while e < len(c)
+                                conn.append(c[e])
+
+                            for entires in conn:
+                                d = c.split(" ")
+
+
+                        print(a)
+
+
+
+
+
+                    shortcut_features
                 print("shortcuts task done!")
 
             ##Bat Migration Blockages
+            # Potentially add a value for when empty?
             if task_export_batmigrationblockages_features:
                 batmigrationblockages_features = []
                 features["batmigrationblockages_features"] = batmigrationblockages_features

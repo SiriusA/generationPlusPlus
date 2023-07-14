@@ -25,8 +25,8 @@ public class MapExporter : BaseUnityPlugin
     
     // Config
     
-    string[] CaptureSpecific = {"Inv:SU","Inv:DS","Inv:CC","Inv:HI","Inv:GW","Inv;SL","Inv:SH","Inv:UW","Inv:SB","Inv:LF","Inv:SI","Inv;VS"}; // For example, "White;SU" loads Outskirts as Survivor
-    bool Screenshots = true;
+    static readonly string[] CaptureSpecific = {"Inv:SU","Inv:DS","Inv:CC","Inv:HI","Inv:GW","Inv;SL","Inv:SH","Inv:UW","Inv:SB","Inv:LF","Inv:SI","Inv;VS"}; // For example, "White;SU" loads Outskirts as Survivor
+    static readonly bool Screenshots = true;
 
     static readonly Dictionary<string, int[]> CameraBlacklist = new()
     {
@@ -34,38 +34,6 @@ public class MapExporter : BaseUnityPlugin
         { "GW_S08", new int[]{2} }, // in vanilla only
         { "SL_C01", new int[]{4,5} }, // crescent order or will break
     };
-    
-   
-        public static Configurable<bool>[] cfgScreenshots = new Configurable<bool>[0];
-        public static Configurable<string>[] cfgCaptureSpecific = new Configurable<string>[0];
-        public static Configurable<string>[] cfgCameraBlacklist = new Configurable<string>[0];
-        internal static Configurable<string> captureSpecific;
-        internal static Configurable<bool> screenshots;
-        internal static Configurable<string> cameraBlacklist;
-
-       // string CaptureSpecific;
-       // bool Screenshots;
-       // string CameraBlacklist;
-   
-
-    // bring in the menu options
-
-        public const string PLUGIN_ID = "io.github.henpemaz-dual-juliacat";
-        public const string PLUGIN_NAME = "Map Exporter Downpour";
-        public const string PLUGIN_VERSION = "1.2.0";
-        private bool init = false;
-        internal static MapExporter instance;
-        internal static ExporterOptions oi;
-
-        internal static Configurable<KeyCode> activateKey;
-        //internal static Configurable<bool> screenshots;
-        internal static short hold;
-        internal static bool freeze;
-        internal static bool mask;
-        internal static bool keyDown;
-        internal static RainWorld rw;
-        internal static Room curRoom;
-        public const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
     public static new ManualLogSource Logger;
 

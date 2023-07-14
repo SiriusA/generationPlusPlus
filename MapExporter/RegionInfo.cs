@@ -227,6 +227,7 @@ sealed class RegionInfo : IJsonObject
         private int[] size;
         private int[,][] tiles;
         private IntVector2[] nodes;
+        //public IntVector2[] shortcutsIndex;
 
         public void UpdateEntry(Room room)
         {
@@ -246,7 +247,7 @@ sealed class RegionInfo : IJsonObject
                 }
             }
             nodes = room.exitAndDenIndex;
-
+            //shortcutsIndex = room.shortcutsIndex;
         }
 
         // wish there was a better way to do this
