@@ -40,16 +40,16 @@ vanillaprefix = streaming_assets + "\world"
 optimize_geometry = True
 skip_existing_tiles = False
 # None, "yellow, white, red, gourmand, artificer, rivulet, spear, saint, inv", "yellow", "yellow, white, red"
-only_slugcat = "rivulet"
+only_slugcat = None
 # None, "cc", "cc, su, ss, sb, sh"
-only_region = "ms"
+only_region = None
 
 task_export_tiles = False
 task_export_features = True
-task_export_room_features = False
-task_export_connection_features = False
-task_export_geo_features = False
-task_export_creatures_features = False
+task_export_room_features = True
+task_export_connection_features = True
+task_export_geo_features = True
+task_export_creatures_features = True
 task_export_placedobject_features = True
 task_export_roomtag_features = True
 task_export_shortcut_features = True
@@ -576,7 +576,7 @@ def do_slugcat(slugcat: str):
                                     if attribute in attr:
                                         for char in attribute:
                                             if char.isupper():
-                                                char.replace("_" + char).lower()
+                                                char.replace(char,"_" + char).lower()
                                         attributekey = attribute.strip("_{}")
                                         spawn[attributekey] = True
 
@@ -745,7 +745,7 @@ def do_slugcat(slugcat: str):
                                 "data":objectdata
                                 }
 
-                            objectcoords = room['roomcoords'] + center_of_tile + 20* np.array([float(objectposx),float(objectposy)])
+                            objectcoords = room['roomcoords'] + center_of_tile + np.array([float(objectposx),float(objectposy)])
                             placedobject_features.append(geojson.Feature(
                                 geometry=geojson.Point(np.array(objectcoords).round().tolist()),
                                 properties=roomobject))
