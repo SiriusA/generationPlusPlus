@@ -22,10 +22,9 @@ namespace MapExporter;
 [BepInPlugin("io.github.henpemaz-dual-juliacat", "Map Exporter Downpour", "1.2.0")]
 public class MapExporter : BaseUnityPlugin
 {
-    
     // Config
-    
-    static readonly string[] CaptureSpecific = {"Inv:SU","Inv:DS","Inv:CC","Inv:HI","Inv:GW","Inv;SL","Inv:SH","Inv:UW","Inv:SB","Inv:LF","Inv:SI","Inv;VS"}; // For example, "White;SU" loads Outskirts as Survivor
+    // "Inv:SU","Inv:DS","Inv:CC","Inv:HI","Inv:GW","Inv;SL","Inv:SH","Inv:UW","Inv:SB","Inv:LF","Inv:SI","Inv;VS"
+    static readonly string[] CaptureSpecific = { }; // For example, "White;SU" loads Outskirts as Survivor
     static readonly bool Screenshots = true;
 
     static readonly Dictionary<string, int[]> CameraBlacklist = new()
@@ -145,7 +144,7 @@ public class MapExporter : BaseUnityPlugin
         self.myTimeStacker += 2f;
         orig(self, dt);
     }
-    //  no grav swithcing
+    //  no grav switching
     private void BrokenAntiGravity_ctor(On.AntiGravity.BrokenAntiGravity.orig_ctor orig, AntiGravity.BrokenAntiGravity self, int cycleMin, int cycleMax, RainWorldGame game)
     {
         orig(self, cycleMin, cycleMax, game);
@@ -360,10 +359,6 @@ public class MapExporter : BaseUnityPlugin
     {
         return $"{Path.Combine(PathOfRegion(slugcat, region), room.ToLower())}_{num}.png";
     }
-    public static bool BlacklistedSlugcats(SlugcatStats.Name i)
-	{
-		return i == SlugcatStats.Name.Night || (ModManager.MSC && i == MoreSlugcatsEnums.SlugcatStatsName.Slugpup) || (ModManager.JollyCoop && i == JollyEnums.Name.JollyPlayer1) || (ModManager.JollyCoop && i == JollyEnums.Name.JollyPlayer2) || (ModManager.JollyCoop && i == JollyEnums.Name.JollyPlayer3) || (ModManager.JollyCoop && i == JollyEnums.Name.JollyPlayer4);
-	}
 
     private static int ScugPriority(string slugcat)
     {
@@ -411,7 +406,8 @@ public class MapExporter : BaseUnityPlugin
             foreach (string slugcatName in SlugcatStats.Name.values.entries.OrderByDescending(ScugPriority)) {
                 SlugcatStats.Name slugcat = new(slugcatName);
                 // Skips over Night, Slugpup, JollyPlayer1, JollyPlayer2, JollyPlayer3, JollyPlayer4
-                if (BlacklistedSlugcats(slugcat)) {
+
+                if (SlugcatStats.HiddenOrUnplayableSlugcat(slugcat)) {
                     continue;
                 }
 
