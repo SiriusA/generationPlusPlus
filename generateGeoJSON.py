@@ -566,7 +566,8 @@ def do_slugcat(slugcat: str):
                                         spawn["amount"] = int(attr[-1])
                                     except:
                                         print("amount not specified. first attribute is \"" + attr[-1] + "\" in \"" + room_name + " : " + creature_desc + "\"")
-                                        spawn["amount"] = "1" # this needs to be a string, not an integer, otherwise it will be interpreted as undefined by the map
+                                        spawn["amount"] = 1
+
                                 if attr[0].isdigit():
                                     spawn["amount"] = attr[0]
                                 elif attr[-1].isdigit():
