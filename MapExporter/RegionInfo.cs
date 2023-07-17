@@ -177,10 +177,10 @@ sealed class RegionInfo : IJsonObject
         else {
             ret["copyRooms"] = copyRooms;
         }
-        ret["conditionalLinks"] = worldConditionalLinks.ToArray();
-        ret["roomTags"] = worldRoomTags.ToArray();
+        ret["conditionallinks"] = worldConditionalLinks.ToArray();
+        ret["roomtags"] = worldRoomTags.ToArray();
         ret["creatures"] = worldCreatures.ToArray();
-        ret["batMigration"] = worldBatMigrationBlockages.ToArray();
+        ret["batmigrationblockages"] = worldBatMigrationBlockages.ToArray();
         return ret;
     }
 
@@ -227,7 +227,7 @@ sealed class RegionInfo : IJsonObject
         private int[] size;
         private int[,][] tiles;
         private IntVector2[] nodes;
-        //public IntVector2[] shortcutsIndex;
+        private IntVector2[] shortcuts;
 
         public void UpdateEntry(Room room)
         {
@@ -247,6 +247,7 @@ sealed class RegionInfo : IJsonObject
                 }
             }
             nodes = room.exitAndDenIndex;
+            shortcuts = room.shortcutsIndex;
             //shortcutsIndex = room.shortcutsIndex;
         }
 
@@ -262,6 +263,7 @@ sealed class RegionInfo : IJsonObject
                 { "subregion", subregion },
                 { "cameras", cameras != null ? (from c in cameras select Vec2arr(c)).ToArray() : null},
                 { "nodes", nodes != null ? (from n in nodes select Intvec2arr(n)).ToArray() : null},
+                { "shortcuts", shortcuts != null ? (from n in nodes select Intvec2arr(n)).ToArray() : null},
                 { "size", size},
                 { "tiles", tiles},
             };
