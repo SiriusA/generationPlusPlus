@@ -40,20 +40,20 @@ vanillaprefix = streaming_assets + "\world"
 optimize_geometry = True
 skip_existing_tiles = False
 # None, "yellow, white, red, gourmand, artificer, rivulet, spear, saint, inv", "yellow", "yellow, white, red"
-only_slugcat = "rivulet"
+only_slugcat = None
 # None, "cc", "cc, su, ss, sb, sh"
 only_region = None
 
 task_export_tiles = False
 task_export_features = True
-task_export_room_features = True
-task_export_connection_features = True
-task_export_geo_features = True
+task_export_room_features = False
+task_export_connection_features = False
+task_export_geo_features = False
 task_export_creatures_features = True
-task_export_placedobject_features = True
-task_export_roomtag_features = True
-task_export_shortcut_features = True
-task_export_batmigrationblockages_features = True
+task_export_placedobject_features = False
+task_export_roomtag_features = False
+task_export_shortcut_features = False
+task_export_batmigrationblockages_features = False
 
 def do_slugcat(slugcat: str):
     if only_slugcat is not None and only_slugcat != slugcat:
@@ -454,7 +454,7 @@ def do_slugcat(slugcat: str):
                 # read spawns, group spawns into dens (dens have a position)
                 dens = {}
                 # excludes mean, number, seed, and amount attributes, since those have special handling
-                creature_attributes = ("{PreCycle}","{IgnoreCycle}","{Night}","{TentacleImmune}","{LavaSafe}","{VoidSea}","{Winter}","{AlternateForm}")
+                creature_attributes = ("{PreCycle}","{Ignorecycle}","{Night}","{TentacleImmune}","{Lavasafe}","{Voidsea}","{Winter}","{AlternateForm}")
                 for spawnentry in regiondata["creatures"]:
                     spawnentry = spawnentry.strip()
                     if not spawnentry:
@@ -501,32 +501,40 @@ def do_slugcat(slugcat: str):
                         # Lineage Creature attributes
                         spawn["lineage_probs"] = [creature.split("-")[-1] for creature in creature_arr]
                         spawn["creature"] = spawn["lineage"][0]
-                        creature_attr = [creature.split("-")[1] for creature in creature_arr]
+                        creature_linattr = [creature.split("-") for creature in creature_arr]
 
-                        for attribute in creature_attributes:
-                            if attribute in arr[3]:
-                                for char in attribute:
-                                    if char.isupper():
-                                        char.replace("_" + char)
-                                attributekey = attribute.strip("_{}").lower()
-                                spawn[attributekey] = attribute in arr[3]
+                        print("creature_arr: " + str(creature_arr))
+                        print("creature_linattr: " + str(creature_linattr))
 
-                        # Mean
-                        if creature_attr[0].startswith("{Mean:"):
-                            mean = creature_attr[0].strip("{Mean:}")
-                            for Lizard in MeanWhitelist:
-                                if spawn["creature"] == Lizard:
-                                    spawn["mean"] = mean
-                        # Seed
-                        if creature_attr[0].startswith("{Seed:"):
-                            seed = creature_attr[0].strip("{Seed:}")
-                            spawn["seed"] = seed
-                        # Number
-                        elif creature_attr[0].startswith("{"):
-                            number = creature_attr[0].strip("{}")
-                            for Length in NumberWhitelist:
-                                if spawn["creature"] == Length:
-                                    spawn["number"] = number
+                        for creature_attr in creature_linattr:
+                            linattrindex = 1
+                            while linattrindex < len(creature_attr):
+                                # PreCycle, Ignorecycle, Night, TentacleImmune, Lavasafe, Voidsea, Winter, and AlternateForm
+                                for attribute in creature_attributes:
+                                    if attribute in arr[3]:
+                                        attributekey = attribute.strip("{}").lower()
+                                        spawn[attributekey] = attribute in arr[3]
+                                # Mean
+                                if creature_attr[linattrindex].startswith("{Mean:"):
+                                    Mean = creature_attr[linattrindex].strip("{Mean:}")
+                                    for Lizard in MeanWhitelist:
+                                        if spawn["creature"] == Lizard:
+                                            spawn["mean"] = Mean
+                                            print("Mean: " + Mean)
+                                # Seed
+                                if creature_attr[linattrindex].startswith("{Seed:"):
+                                    Seed = creature_attr[linattrindex].strip("{Seed:}")
+                                    spawn["seed"] = Seed
+                                    print("Seed: " + Seed)
+                                # Number
+                                if creature_attr[linattrindex].startswith("{") and not creature_attr[0]:
+                                    Number = creature_attr[linattrindex].strip("{}")
+                                    for Length in NumberWhitelist:
+                                        if spawn["creature"] == Length:
+                                            spawn["number"] = Number
+                                            print("Number: " + number)
+
+                                linattrindex += 1
 
                         denkey = arr[1]+ ":" +arr[2] # room:den
                         if denkey in dens:
@@ -555,49 +563,49 @@ def do_slugcat(slugcat: str):
                                 if tiles[node[1]][node[0]][2] != 3:
                                     print("faulty spawn! not a den: " + spawnentry)
                                     continue
-                            
+
+                            # Always implicitly assume a creature amount of 1 when not explicitly defined
                             spawn["amount"] = 1
                             if attr:
-                                # TODOne read creature attributes
-                                if not attr[-1].startswith("}"):
-                                    try:
-                                        spawn["amount"] = int(attr[-1])
-                                    except:
-                                        print("amount not specified. first attribute is \"" + attr[-1] + "\" in \"" + room_name + " : " + creature_desc + "\"")
-                                        spawn["amount"] = 1
+                                print("Count: " + str(len(attr)) + ", Attributes: " + str(attr))
+                                attrindex = 0
+                                while attrindex < len(attr):
+                                    # Read creature attributes
+                                    if not attr[attrindex].startswith("{"):
+                                        try:
+                                            spawn["amount"] = int(attr[attrindex])
+                                        except:
+                                            print("amount not specified. first attribute is \"" + attr[attrindex] + "\" in \"" + room_name + " : " + creature_desc + "\"")
+                                            spawn["amount"] = 1
+                                    # PreCycle, Ignorecycle, Night, TentacleImmune, Lavasafe, Voidsea, Winter, and AlternateForm
+                                    for attribute in creature_attributes:
+                                        if attribute in attr:
+                                            attributekey = attribute.strip("{}").lower()
+                                            spawn[attributekey] = True
+                                    # Mean
+                                    if attr[attrindex].startswith("{Mean:") in attr:
+                                        Mean = attr[attrindex].strip("{Mean:}")
+                                        for Lizard in MeanWhitelist:
+                                            if spawn["creature"] == Lizard:
+                                                if "{Mean:" + Mean + "}" in attr:
+                                                    print("Mean: " + Mean)
+                                                    spawn["mean"] = Mean
+                                    # Seed
+                                    if attr[attrindex].startswith("{Seed:") in attr:
+                                        Seed = attr[attrindex].strip("{Seed:}")
+                                        if "{Seed:" + Seed + "}" in attr:
+                                            print("Seed: " + Seed)
+                                            spawn["seed"] = Seed
+                                    # Number
+                                    if attr[attrindex].startswith("{") in attr and not attr[attrindex].find("e") in attr:
+                                        number = attr[attrindex].strip("{}")
+                                        for Length in NumberWhitelist:
+                                            if spawn["creature"] == Length:
+                                                if "{" + number + "}" in attr:
+                                                    print("Number: " + number)
+                                                    spawn["number"] = number
 
-                                if attr[0].isdigit():
-                                    spawn["amount"] = attr[0]
-                                elif attr[-1].isdigit():
-                                    spawn["amount"] = attr[-1]
-
-                                for attribute in creature_attributes:
-                                    if attribute in attr:
-                                        for char in attribute:
-                                            if char.isupper():
-                                                char.replace(char,"_" + char).lower()
-                                        attributekey = attribute.strip("_{}")
-                                        spawn[attributekey] = True
-
-                                # Mean
-                                if attr[0].startswith("{Mean:") in attr:
-                                    mean = attr[0].strip("{Mean:}")
-                                    for Lizard in MeanWhitelist:
-                                        if spawn["creature"] == Lizard:
-                                            if "{Mean:" + mean + "}" in attr:
-                                                spawn["mean"] = mean
-                                # Seed
-                                if attr[0].startswith("{Seed:") in attr:
-                                    seed = attr[0].strip("{Seed:}")
-                                    if "{Seed:" + seed + "}" in attr:
-                                        spawn["seed"] = seed
-                                # Number
-                                elif attr[0].startswith("{") in attr:
-                                    number = attr[0].strip("{}")
-                                    for Length in NumberWhitelist:
-                                        if spawn["creature"] == Length:
-                                            if "{" + number + "}" in attr:
-                                                spawn["number"] = number
+                                    attrindex += 1
 
                             if spawn["creature"] == "Spider 10": ## Bruh...
                                 print("faulty spawn! stupid spiders: " + room_name + " : " + creature_desc)
