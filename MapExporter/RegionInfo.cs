@@ -248,7 +248,6 @@ sealed class RegionInfo : IJsonObject
             }
             nodes = room.exitAndDenIndex;
             shortcuts = room.shortcutsIndex;
-            //shortcutsIndex = room.shortcutsIndex;
         }
 
         // wish there was a better way to do this

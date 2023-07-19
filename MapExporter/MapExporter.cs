@@ -23,8 +23,8 @@ namespace MapExporter;
 public class MapExporter : BaseUnityPlugin
 {
     // Config
-    // "Inv:SU","Inv:DS","Inv:CC","Inv:HI","Inv:GW","Inv;SL","Inv:SH","Inv:UW","Inv:SB","Inv:LF","Inv:SI","Inv;VS"
-    static readonly string[] CaptureSpecific = { }; // For example, "White;SU" loads Outskirts as Survivor
+    // "Inv;SU", "Inv;DS", "Inv;CC", "Inv;HI", "Inv;GW", "Inv;SL", "Inv;SH", "Inv;UW", "Inv;SB", "Inv;LF", "Inv;SI", "Inv;VS"
+    static readonly string[] CaptureSpecific = {"Inv;SS"}; // For example, "White;SU" loads Outskirts as Survivor
     static readonly bool Screenshots = true;
 
     static readonly Dictionary<string, int[]> CameraBlacklist = new()
@@ -245,7 +245,14 @@ public class MapExporter : BaseUnityPlugin
         foreach (var item in self.roomSettings.placedObjects) {
             if (item.type == PlacedObject.Type.InsectGroup) item.active = false;
             if (item.type == PlacedObject.Type.FlyLure
-                || item.type == PlacedObject.Type.JellyFish) self.waitToEnterAfterFullyLoaded = Mathf.Max(self.waitToEnterAfterFullyLoaded, 20);
+                || item.type == PlacedObject.Type.JellyFish
+                || item.type == PlacedObject.Type.BubbleGrass
+                || item.type == PlacedObject.Type.TempleGuard
+                || item.type == PlacedObject.Type.Hazer
+                || item.type == PlacedObject.Type.DeadHazer
+                || item.type == PlacedObject.Type.HangingPearls
+                || item.type == PlacedObject.Type.VultureGrub
+                || item.type == PlacedObject.Type.DeadVultureGrub) self.waitToEnterAfterFullyLoaded = Mathf.Max(self.waitToEnterAfterFullyLoaded, 20);
         }
         orig(self);
     }
@@ -314,6 +321,21 @@ public class MapExporter : BaseUnityPlugin
         self.GetStorySession.saveState.theGlow = false;
         self.rainWorld.setup.playerGlowing = false;
 
+        // Begone 
+        self.GetStorySession.saveState.deathPersistentSaveData.theMark = false;
+       // self.GetStorySession.saveState.deathPersistentSaveData.redsDeath = false;
+       // self.GetStorySession.saveState.deathPersistentSaveData.reinforcedKarma = false;
+       // self.GetStorySession.saveState.deathPersistentSaveData.altEnding = false;
+       // self.GetStorySession.saveState.hasRobo = false;
+       // self.GetStorySession.saveState.redExtraCycles = false;
+       // self.GetStorySession.saveState.deathPersistentSaveData.ascended = false;
+
+        // plus more
+        self.GetStorySession.saveState.deathPersistentSaveData.PoleMimicEverSeen = true;
+        self.GetStorySession.saveState.deathPersistentSaveData.SMEatTutorial = true;
+        self.GetStorySession.saveState.deathPersistentSaveData.ArtificerMaulTutorial = true;
+        self.GetStorySession.saveState.deathPersistentSaveData.GateStandTutorial = true;
+
         // no tutorials
         self.GetStorySession.saveState.deathPersistentSaveData.KarmaFlowerMessage = true;
         self.GetStorySession.saveState.deathPersistentSaveData.ScavMerchantMessage = true;
@@ -367,6 +389,7 @@ public class MapExporter : BaseUnityPlugin
             "artificer" => 9,   // do Artificer next, they have Metropolis, Waterfront Facility, and past-GW
             "saint" => 8,       // do Saint next for Undergrowth and Silent Construct
             "rivulet" => 7,     // do Rivulet for The Rot
+            "inv" => 6,         // just cause
             _ => 0              // everyone else has a mix of duplicate rooms
         };
     }
@@ -407,7 +430,7 @@ public class MapExporter : BaseUnityPlugin
                 SlugcatStats.Name slugcat = new(slugcatName);
                 // Skips over Night, Slugpup, JollyPlayer1, JollyPlayer2, JollyPlayer3, JollyPlayer4
 
-                if (SlugcatStats.HiddenOrUnplayableSlugcat(slugcat)) {
+                if (slugcat.ToString() != "Inv" && SlugcatStats.HiddenOrUnplayableSlugcat(slugcat)) {
                     continue;
                 }
 

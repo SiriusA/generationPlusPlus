@@ -68,6 +68,8 @@ static class ReusedRooms
             return "saint";
         if (region is "rm")
             return "rivulet";
+        if (region is "ss") // TO BE REMOVED
+            return "inv"; // TEMPORARY
         return "white";
     }
 

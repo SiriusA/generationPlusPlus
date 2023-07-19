@@ -40,7 +40,7 @@ vanillaprefix = streaming_assets + "\world"
 optimize_geometry = True
 skip_existing_tiles = False
 # None, "yellow, white, red, gourmand, artificer, rivulet, spear, saint, inv", "yellow", "yellow, white, red"
-only_slugcat = None
+only_slugcat = "rivulet"
 # None, "cc", "cc, su, ss, sb, sh"
 only_region = None
 
@@ -502,8 +502,6 @@ def do_slugcat(slugcat: str):
                         spawn["lineage_probs"] = [creature.split("-")[-1] for creature in creature_arr]
                         spawn["creature"] = spawn["lineage"][0]
                         creature_attr = [creature.split("-")[1] for creature in creature_arr]
-                        if arr[3].isdigit():
-                            spawn["amount"] = arr[3]
 
                         for attribute in creature_attributes:
                             if attribute in arr[3]:
@@ -558,7 +556,7 @@ def do_slugcat(slugcat: str):
                                     print("faulty spawn! not a den: " + spawnentry)
                                     continue
                             
-                        
+                            spawn["amount"] = 1
                             if attr:
                                 # TODOne read creature attributes
                                 if not attr[-1].startswith("}"):
@@ -635,8 +633,7 @@ def do_slugcat(slugcat: str):
                 ismsc = False
                 isvanilla = False
                 worldsources = ([mergedmodsprefix,"MergedMods",ismergedmods,mergedmodspath],[mscprefix,"MSC",ismsc,mscpath],[vanillaprefix,"Vanilla",isvanilla,vanillapath])
-                roomobject = {} # the individual object in a room
-                placedobjectrooms = {} # the collection of objects in each room
+                inroomobjects = [] # the list of collective objects within a singular room
                 print("starting placed object task!")
                 # for each room, resolve the exact file path so that it can be referenced and read later
                 for roomname, room in rooms.items():
@@ -722,6 +719,7 @@ def do_slugcat(slugcat: str):
                     rawplacedobjects = str(rawplacedobjects).partition(": ")[-1].rstrip(", \n")
                     listplacedobjects = rawplacedobjects.split(", ")
 
+                    # since objects have independent positions, each object has its own geometry, properties pair
                     for roomobject in listplacedobjects:
                         if len(roomobject) <= 3:
                             print("object is a stub, skipping")
@@ -732,7 +730,7 @@ def do_slugcat(slugcat: str):
                                 "room":roomname,
                                 "borkeddata":roomobject
                                 }
-                            placedobject_features.append(roomobject)
+
                         else:
                             objectentry = roomobject.split("><")
                             objectname = objectentry[0]
@@ -771,8 +769,7 @@ def do_slugcat(slugcat: str):
                             print("tagged " + tagroomname + " as " + tagentry)
 
                             roomtag_features.append(geojson.Feature(
-                                geometry = {
-                                    },
+                                geometry = geojson.Point(),
                                 properties = {
                                     "room":tagroomname,
                                     "tag":roomtag
@@ -839,20 +836,26 @@ def do_slugcat(slugcat: str):
 
                     filepath = fileresolver(roomName)
 
+                    # Get the connection map at line 10, and room tiles at line 12
                     with open(filepath, 'r', encoding="utf-8") as f:
                         roomfile = f.readlines()
 
                         if len(roomfile) == 12:
                             shortcutline = 10
+                            roomtilesline = 12
                         elif len(roomfile) == 8:
                             shortcutline = 6
+                            roomtilesline = 8
 
                         i = 1
-                        while i < shortcutline:
+                        while i < len(roomfile):
                             for line in roomfile:
                                 if i == shortcutline:
-                                    print("found line " + str(i) + " in " + os.path.basename(filepath))
+                                    print("found connection map at line " + str(i) + " in " + os.path.basename(filepath))
                                     connectionsmap = line
+                                if i == roomtilesline:
+                                    print("found room tiles at line " + str(i) + " in " + os.path.basename(filepath))
+                                    roomfilenodes = line
 
                                 i += 1
 

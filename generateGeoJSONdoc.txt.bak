@@ -1,0 +1,249 @@
+Placed Objects Outline
+
+Sources : 
+Common Path : C:\Program Files (x86)\Steam\steamapps\common\Rain World\RainWorld_Data\StreamingAssets
+mergedmods : \mergedmods\world
+msc : \mods\moreslugcats\world
+vanilla : \world
+
+
+for each slugcat
+	for each region
+		for each room
+			for each placed object
+			
+File Resolver
+	match room name to a room settings path
+	start at msc, searching through the corresponding region rooms folder, then the gates
+	scan for both the generic and slucgat specific settings files if they exist, and if so, prioritize capturing the specific one
+	then check mergedmods and vanilla for existing settings files, and if so, prioritize mergedmods over both msc and vanilla, that is if the generic settings file is being used
+	if exists at only msc and vanilla, prioritize msc over vanilla
+	return each settings path with the corresponding room name
+	(roomname,path)
+	
+File Assimilation
+use the entries of (roomname,path)
+use path to capture lines that start with "PlacedObjects: "
+trim "PlacedObjects: " and split the list by ", "
+while skipping the last entry (which is blank), split each object entry by "><"
+write each object entry to a list
+write the complied object entries into a list for a singular room
+write the object list to (roomname,path), replacing path with placedobjects
+region objects = (roomname,roomobjects)
+roomobjects = (roomentry,)
+roomentry = (objectname, posx, posy, other)
+
+Create 
+
+
+  ## Placed Objects
+            if task_export_placedobject_features:
+                placedobject_features = []
+                features["placedobject_features"] = placedobject_features
+                worldName = regiondata["acronym"].lower()
+                mergedmods = "C:\Program Files (x86)\Steam\steamapps\common\Rain World\RainWorld_Data\StreamingAssets\mergedmods\world"
+                msc = "C:\Program Files (x86)\Steam\steamapps\common\Rain World\RainWorld_Data\StreamingAssets\mods\moreslugcats\world"
+                vanilla = "C:\Program Files (x86)\Steam\steamapps\common\Rain World\RainWorld_Data\StreamingAssets\world"
+                worlds = (mergedmods, msc, vanilla)
+                for roomname, room in rooms.items():
+                    roomName = roomname.lower()
+                mscshort = msc.partition("\StreamingAssets")
+                mscshort = mscshort[-1]
+                vanillashort = vanilla.partition("\StreamingAssets")
+                vanillashort = vanillashort[-1]
+                mergedmodsshort = mergedmods.partition("\StreamingAssets")
+                mergedmodsshort = mergedmodsshort[-1]
+                placedrooms = {} # the individual rooms
+                roomobjects = {} # the collective objects within an individual room
+
+                print("starting placed object task!")
+                # go once over for the mergedmods, msc, and vanilla world files, with that priority
+                for world in worlds:
+                    # check all folders within the world folder, and only proceed if it is a gates or region-rooms folder
+                    for folder in os.scandir(os.path.realpath(world)):
+                        if not folder.is_dir() or len(folder.name) == 2 or (only_region is not None and only_region != folder.name) or folder.name == "indexmaps":
+                            # print("BAD source: " + folder.name)
+                            continue
+
+                        # print("Valid settings source: " + folder.name)
+                        # match any rooms under the parent folder to their settings
+
+                            # for each room, resolve the exact file path so that it can be referenced and read later
+                        else:
+                            def fileresolver(worldName):
+                                print("Running File Resolver: ")
+                                for room in rooms.items():
+                                    path = ""
+                                    roomName = room[0]
+                                    regionpaths = {
+                                        ["roomname"]:roomName,
+                                        ["path"]:path
+                                        }
+                                    # for gate rooms
+                                    if room[0].startswith("gate"):
+                                        # capture generic gate settings
+                                        path = world + "\gates\\" + roomName + "_settings.txt"
+                                        if (os.path.exists(path)):
+                                            print("Found generic gate settings for " + slugcat + "\\" + roomName + " at " + path)
+                                            if os.path.exists(mergedmods + "\gates\\" + os.path.basename(path)) and os.path.exists(vanilla + "\gates\\" + os.path.basename(path)):
+                                                print("Duplicates found within mergedmods and vanilla. Prioritizing the mergedmods version")
+                                                mergedmodspath = mergedmods + "\gates\\" + os.path.basename(path)
+                                                regionpaths.append(roomName,mergedmodspath)
+                                            elif os.path.exists(mergedmods + "\gates\\" + os.path.basename(path)) and os.path.exists(msc + "\gates\\" + os.path.basename(path)):
+                                                print("Duplicates found within mergedmods and msc. Prioritizing the mergedmods version")
+                                                mergedmodspath = mergedmods + "\gates\\" + os.path.basename(path)
+                                                regionpaths.append(roomName,mergedmodspath)
+                                            elif os.path.exists(msc + "\gates\\" + os.path.basename(path)) and os.path.exists(vanilla + "\gates\\" + os.path.basename(path)):
+                                                print("Duplicates found within msc and vanilla. Prioritizing the msc version")
+                                                mscpath = msc + "\gates\\" + os.path.basename(path)
+                                                regionpaths.append(roomName,mscpath)
+                                            else:
+                                                print("No conflicting duplicates found within the other world files. returning settings file from " + world)
+                                                regionpaths.append(roomName,path)
+                                        else:
+                                            print("No generic gate settings for " + slugcat + "\\" + roomName + " at " + path)
+                                        # capture slugcat-specific gate settings
+                                        path = world + "\gates\\" + roomName + "_settings-" + slugcat + ".txt"
+                                        if (os.path.exists(path)):
+                                            print("Found specific gate settings for " + slugcat + "\\" + roomName + " at " + path)
+                                            if os.path.exists(mergedmods + "\gates\\" + os.path.basename(path)) and os.path.exists(vanilla + "\gates\\" + os.path.basename(path)):
+                                                print("Duplicates found within mergedmods and vanilla. Prioritizing the mergedmods version")
+                                                mergedmodspath = mergedmods + "\gates\\" + os.path.basename(path)
+                                                regionpaths.append(roomName,mergedmodspath)
+                                            elif os.path.exists(mergedmods + "\gates\\" + os.path.basename(path)) and os.path.exists(msc + "\gates\\" + os.path.basename(path)):
+                                                print("Duplicates found within mergedmods and msc. Prioritizing the mergedmods version")
+                                                mergedmodspath = mergedmods + "\gates\\" + os.path.basename(path)
+                                                regionpaths.append(roomName,mergedmodspath)
+                                            elif os.path.exists(msc + "\gates\\" + os.path.basename(path)) and os.path.exists(vanilla + "\gates\\" + os.path.basename(path)):
+                                                print("Duplicates found within msc and vanilla. Prioritizing the msc version")
+                                                mscpath = msc + "\gates\\" + os.path.basename(path)
+                                                regionpaths.append(roomName,mscpath)
+                                            else:
+                                                print("No conflicting duplicates found within the other world files. returning settings file from " + world)
+                                                regionpaths.append(roomName,path)
+                                        else:
+                                            print("No specific gate settings for " + slugcat + "\\" + roomName + " at " + path)
+                                    # for non gate (normal) rooms
+                                    else:
+                                        # capture generic room settings
+                                        path = world + "\\" + worldName + "-rooms\\" + roomName + "_settings.txt"
+                                        if (os.path.exists(path)):
+                                            print("Found generic room settings for " + slugcat + "\\" + roomName + " at " + path)
+                                            if os.path.exists(mergedmods + "\\" + worldName + "-rooms\\" + os.path.basename(path)) and os.path.exists(vanilla + "\\" + worldName + "-rooms\\" + os.path.basename(path)):
+                                                print("Duplicates found within mergedmods and vanilla. Prioritizing the mergedmods version")
+                                                mergedmodspath = mergedmods + "\\" + worldName + "-rooms\\" + os.path.basename(path)
+                                                regionpaths.append(roomName,mergedmodspath)
+                                            elif os.path.exists(mergedmods + "\\" + worldName + "-rooms\\" + os.path.basename(path)) and os.path.exists(msc + "\\" + worldName + "-rooms\\" + os.path.basename(path)):
+                                                print("Duplicates found within mergedmods and msc. Prioritizing the mergedmods version")
+                                                mergedmodspath = mergedmods + "\\" + worldName + "-rooms\\" + os.path.basename(path)
+                                                regionpaths.append(roomName,mergedmodspath)
+                                            elif os.path.exists(msc + "\\" + worldName + "-rooms\\" + os.path.basename(path)) and os.path.exists(vanilla + "\\" + worldName + "-rooms\\" + os.path.basename(path)):
+                                                print("Duplicates found within msc and vanilla. Prioritizing the msc version")
+                                                mscpath = msc + "\\" + worldName + "-rooms\\" + os.path.basename(path)
+                                                regionpaths.append(roomName,mscpath)
+                                            else:
+                                                print("No conflicting duplicates found within the other world files. returning settings file from " + world)
+                                                regionpaths.append(roomName,path)
+                                        else:
+                                            print("No generic room settings for " + slugcat + "\\" + roomName + " at " + path)
+                                        # capture slugcat-specific room settings
+                                        path = world + "\\" + worldName + "-rooms\\" + roomName + "_settings-" + slugcat + ".txt"
+                                        if (os.path.exists(path)):
+                                            print("Found specific room settings for " + slugcat + "\\" + roomName + " at " + path)
+                                            if os.path.exists(mergedmods + "\\" + worldName + "-rooms\\" + os.path.basename(path)) and os.path.exists(vanilla + "\\" + worldName + "-rooms\\" + os.path.basename(path)):
+                                                print("Duplicates found within mergedmods and vanilla. Prioritizing the mergedmods version")
+                                                mergedmodspath = mergedmods + "\\" + worldName + "-rooms\\" + os.path.basename(path)
+                                                regionpaths.append(roomName,mergedmodspath)
+                                            elif os.path.exists(mergedmods + "\\" + worldName + "-rooms\\" + os.path.basename(path)) and os.path.exists(msc + "\\" + worldName + "-rooms\\" + os.path.basename(path)):
+                                                print("Duplicates found within mergedmods and msc. Prioritizing the mergedmods version")
+                                                mergedmodspath = mergedmods + "\\" + worldName + "-rooms\\" + os.path.basename(path)
+                                                regionpaths.append(roomName,mergedmodspath)
+                                            elif os.path.exists(msc + "\\" + worldName + "-rooms\\" + os.path.basename(path)) and os.path.exists(vanilla + "\\" + worldName + "-rooms\\" + os.path.basename(path)):
+                                                print("Duplicates found within msc and vanilla. Prioritizing the msc version")
+                                                mscpath = msc + "\\" + worldName + "-rooms\\" + os.path.basename(path)
+                                                regionpaths.append(roomName,mscpath)
+                                            else:
+                                                print("No conflicting duplicates found within the other world files. returning settings file from " + world)
+                                                regionpaths.append(roomName,path)
+                                        else:
+                                            print("No specific room settings for " + slugcat + "\\" + roomName + " at " + path)
+                                print("File Resolver done!")
+                                return regionpaths
+
+                            paths = fileresolver(worldName)
+                            
+                            if paths == "":
+                                # print("No settings for " + roomName + " within " + world)
+                                continue
+                            # convert each settings file into a list of placed objects
+                            print(paths)
+                            for path in paths:
+                                with open(path, 'r', encoding="utf-8") as f:
+                                    readall = f.readlines()
+                                    insideofplacedobjects = False;
+                                    for readline in readall:
+                                        if (readline.startswith("PlacedObjects: ")):
+                                            insideofplacedobjects = True;
+                                            RoomPlacedObjects = readline
+                                        elif (not readline.startswith("PlacedObjects: ")):
+                                            insideofplacedobjects = False;
+                                        elif (insideofplacedobjects):
+                                            RoomPlacedObjects = readline
+                                placedroom = {
+                                    ["roomname"]:room,
+                                    ["placedobjects"]:RoomPlacedObjects
+                                    }
+
+                                # start processing the entries
+                                RoomPlacedObjects = RoomPlacedObjects.partition(": ")[-1]
+                                placedobjects = RoomPlacedObjects.rstrip(", ")
+                                placedobjects = placedobjects.split(", ")
+                                for placedobject in placedobjects:
+                                    splitobject = placedobject.split("><")
+                    
+                                    name = splitobject[0]
+                                    posx = splitobject[1]
+                                    posy = splitobject[2]
+                                    other = splitobject[3]
+                                    pos = (posx,posy)
+                                    pos = room['roomcoords'] + center_of_tile + 20
+                                    objectkey = (name,pos,other)
+                                    if objectkey in placedobjects:
+                                        placedobjects[objectkey]["placedobjects"].append(splitobject)
+                                    else:
+                                        placedobjects[objectkey] = {"room":roomname,"objectname":name,"placedobjects":splitobject}
+                                    # plop the processed placed objects onto the features list
+                                    placedobject_features.append(geojson.Feature(
+                                        geometry = geojson.Point(np.array([pos]).round().tolist()),
+                                        properties = placedobjects))
+                    def reference():
+                        ## Non-Lineage Creatures
+                        creature_arr = arr[1].split(", ")
+                        room_name = arr[0]
+                        for creature_desc in creature_arr:
+                            spawn = {}
+                            spawn["is_lineage"] = False
+                            den_index,spawn["creature"], *attr = creature_desc.split("-")
+                            node = rooms[room_name]["nodes"][int(den_index)]
+                            tiles = rooms[room_name]["tiles"]
+                            denkey = room_name+ ":" +den_index # room:den
+                            if denkey in dens:
+                                dens[denkey]["creatures"].append(spawn)
+                            else:
+                                dens[denkey] = {"room":room_name,"den":int(den_index),"creatures":[spawn]}
+                        ## process dens into features
+                        for _,den in dens.items():
+                            if den["room"] == "OFFSCREEN":
+                                room = regiondata['offscreen']
+                                dencoords = room['roomcoords'] + ofscreensize/2
+                            else:
+                                room = rooms[den["room"]]
+                                dencoords = room['roomcoords'] + center_of_tile + 20* np.array(room['nodes'][den["den"]])
+                            creatures_features.append(geojson.Feature(
+                                geometry=geojson.Point(np.array(dencoords).round().tolist()),
+                                properties=den))
+                        print("creatures task done!")
+
+                    # were it so easy
+                    print("placed object task done! for " + world)
+                    print(placedobject_features)
