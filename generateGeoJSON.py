@@ -44,13 +44,16 @@ only_slugcat = None
 # None, "cc", "cc, su, ss, sb, sh"
 only_region = None
 
+#only_slugcat = "inv"
+#only_region = "su"
+
 task_export_tiles = False
 task_export_features = True
 task_export_room_features = False
 task_export_connection_features = False
 task_export_geo_features = False
-task_export_creatures_features = True
-task_export_placedobject_features = False
+task_export_creatures_features = False
+task_export_placedobject_features = True
 task_export_roomtag_features = False
 task_export_shortcut_features = False
 task_export_batmigrationblockages_features = False
@@ -727,6 +730,11 @@ def do_slugcat(slugcat: str):
                     rawplacedobjects = str(rawplacedobjects).partition(": ")[-1].rstrip(", \n")
                     listplacedobjects = rawplacedobjects.split(", ")
 
+                    placedObjects = []
+                    roomPlacedObjects = {
+                        "room":roomname,
+                        "placedobjects":placedObjects
+                        }
                     # since objects have independent positions, each object has its own geometry, properties pair
                     for roomobject in listplacedobjects:
                         if len(roomobject) <= 3:
@@ -735,10 +743,8 @@ def do_slugcat(slugcat: str):
                         elif "><" not in roomobject:
                             print("Object " + roomobject + ' does not contain "><" value delimiters, ')
                             roomobject = {
-                                "room":roomname,
                                 "borkeddata":roomobject
                                 }
-
                         else:
                             objectentry = roomobject.split("><")
                             objectname = objectentry[0]
@@ -746,16 +752,17 @@ def do_slugcat(slugcat: str):
                             objectposy = objectentry[2]
                             objectdata = objectentry[3]
 
-                            roomobject = {
-                                "room":roomname,
+                            singlePlacedObject = {
                                 "object":objectname,
                                 "data":objectdata
                                 }
-
                             objectcoords = room['roomcoords'] + center_of_tile + np.array([float(objectposx),float(objectposy)])
-                            placedobject_features.append(geojson.Feature(
+                            placedObjects.append(geojson.Feature(
                                 geometry=geojson.Point(np.array(objectcoords).round().tolist()),
-                                properties=roomobject))
+                                properties=singlePlacedObject))
+
+                    placedobject_features.append(geojson.Feature(
+                        properties=roomPlacedObjects))
                 # were it so easy
                 print("placed object task done!")
 
