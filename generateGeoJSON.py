@@ -44,9 +44,6 @@ only_slugcat = None
 # None, "cc", "cc, su, ss, sb, sh"
 only_region = None
 
-#only_slugcat = "inv"
-#only_region = "su"
-
 task_export_tiles = False
 task_export_features = True
 task_export_room_features = False
@@ -730,11 +727,6 @@ def do_slugcat(slugcat: str):
                     rawplacedobjects = str(rawplacedobjects).partition(": ")[-1].rstrip(", \n")
                     listplacedobjects = rawplacedobjects.split(", ")
 
-                    placedObjects = []
-                    roomPlacedObjects = {
-                        "room":roomname,
-                        "placedobjects":placedObjects
-                        }
                     # since objects have independent positions, each object has its own geometry, properties pair
                     for roomobject in listplacedobjects:
                         if len(roomobject) <= 3:
@@ -742,27 +734,32 @@ def do_slugcat(slugcat: str):
                             continue
                         elif "><" not in roomobject:
                             print("Object " + roomobject + ' does not contain "><" value delimiters, ')
-                            roomobject = {
-                                "borkeddata":roomobject
+                            roomobject.split("~")
+
+                            PlacedObject = {
+                                "data":roomobject
                                 }
+
+                            placedobject_features.append(geojson.Feature(
+                                properties=PlacedObject))
                         else:
                             objectentry = roomobject.split("><")
                             objectname = objectentry[0]
                             objectposx = objectentry[1]
                             objectposy = objectentry[2]
-                            objectdata = objectentry[3]
+                            objectdata = objectentry[3].split("~")
 
-                            singlePlacedObject = {
+                            PlacedObject = {
+                                "room":roomname,
                                 "object":objectname,
                                 "data":objectdata
                                 }
-                            objectcoords = room['roomcoords'] + center_of_tile + np.array([float(objectposx),float(objectposy)])
-                            placedObjects.append(geojson.Feature(
-                                geometry=geojson.Point(np.array(objectcoords).round().tolist()),
-                                properties=singlePlacedObject))
 
-                    placedobject_features.append(geojson.Feature(
-                        properties=roomPlacedObjects))
+                            objectcoords = room['roomcoords'] + center_of_tile + np.array([float(objectposx),float(objectposy)])
+                            placedobject_features.append(geojson.Feature(
+                                geometry=geojson.Point(np.array(objectcoords).round().tolist()),
+                                properties=PlacedObject))
+
                 # were it so easy
                 print("placed object task done!")
 
@@ -774,21 +771,21 @@ def do_slugcat(slugcat: str):
                 print("room tag task!")
                 for roomentry in regiondata["roomtags"]:
                     roomentry = roomentry.strip()
-                    tagroomname = roomentry.partition(" : ")
-                    roomtag = tagroomname[2].partition(" : ")
+                    tagroomname = roomentry.partition(" : ")[0]
+                    roomtag = roomentry.partition(" : ")[2].partition(" : ")[2]
 
-                    for tagentry in roomtags:
-                        if roomentry.endswith(tagentry):
-                            tagroomname = tagroomname[0]
-                            roomtag = roomtag[2]
-                            print("tagged " + tagroomname + " as " + tagentry)
-
-                            roomtag_features.append(geojson.Feature(
-                                geometry = geojson.Point(),
-                                properties = {
-                                    "room":tagroomname,
-                                    "tag":roomtag
-                                }))
+                    for roomname, room in rooms.items():
+                        if tagroomname == roomname:
+                            room['roomcoords'] = np.array(room['devPos']) * 10 # map coord to room px coords
+                            for tagentry in roomtags:
+                                if roomtag == tagentry:
+                                    print("tagged " + tagroomname + " as " + tagentry)
+                                    roomtag_features.append(geojson.Feature(
+                                        geometry = geojson.Point(np.array(room['roomcoords']).round().tolist()),
+                                        properties = {
+                                            "room":tagroomname,
+                                            "tag":roomtag
+                                        }))
                 print("room tag task done!")
            
             ##Shortcuts
@@ -925,8 +922,6 @@ def do_slugcat(slugcat: str):
                         properties=roomshortcuts))
                 print("shortcuts task done!")
 
-
-
             ##Bat Migration Blockages
             # Potentially add a value for when empty?
             if task_export_batmigrationblockages_features:
@@ -939,12 +934,15 @@ def do_slugcat(slugcat: str):
                         blockageentry = ""
                         continue
 
-                    print("bat migration is blocked for room " + blockageentry)
-                    batmigrationblockages_features.append(geojson.Feature(
-                        geometry=geojson.Point(),
-                        properties = {
-                        "blockedrooms":blockageentry
-                        }))
+                    for roomname, room in rooms.items():
+                        if blockageentry == roomname:
+                            room['roomcoords'] = np.array(room['devPos']) * 10 # map coord to room px coords
+                            print("bat migration is blocked for room " + blockageentry)
+                            batmigrationblockages_features.append(geojson.Feature(
+                                geometry=geojson.Point(np.array(room['roomcoords']).round().tolist()),
+                                properties = {
+                                "room":blockageentry
+                                }))
                 print("bat migration blockages task done!")
 
             ## End
@@ -955,7 +953,7 @@ def do_slugcat(slugcat: str):
                 json.dump(features,myout)
             print("done with features task")
 
-        print("Region done! " + entry.name)
+        print("Region done! " + slugcat + "/" + entry.name)
 
     print("Slugcat done! " + slugcat)
 
