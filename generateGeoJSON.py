@@ -49,8 +49,8 @@ task_export_features = True
 task_export_room_features = False
 task_export_connection_features = False
 task_export_geo_features = False
-task_export_creatures_features = True
-task_export_placedobject_features = False
+task_export_creatures_features = False
+task_export_placedobject_features = True
 task_export_shortcut_features = False
 task_export_roomtag_features = False
 task_export_batmigrationblockages_features = False
@@ -681,7 +681,7 @@ def do_slugcat(slugcat: str):
                 ismergedmods = False
                 ismsc = False
                 isvanilla = False
-                worldsources = ([mergedmodsprefix,"MergedMods",ismergedmods,mergedmodspath],[mscprefix,"MSC",ismsc,mscpath],[vanillaprefix,"Vanilla",isvanilla,vanillapath])
+                worldsources = ([mscprefix,"MSC",ismsc,mscpath],[mergedmodsprefix,"MergedMods",ismergedmods,mergedmodspath],[vanillaprefix,"Vanilla",isvanilla,vanillapath])
                 inroomobjects = [] # the list of collective objects within a singular room
                 steampipes = ("SteamPipe","WallSteamer")
                 quadobject = ("SpotLight","SuperJumpInstruction","DeepProcessing","CustomDecal")
@@ -700,6 +700,7 @@ def do_slugcat(slugcat: str):
                                     "NeuronSpawner","MSArteryPush","BigJellyFish","RotFlyPaper","KarmaShrine","Stowaway","ScavengerOutpost","InsectGroup","Filter")
                 print("starting placed object task!")
                 # for each room, resolve the exact file path so that it can be referenced and read later
+                mscregions = ("rm","vs","ms","lc","hr","cl","oe","ug","dm","lm")
                 for roomname, room in rooms.items():
                     roomName = room['roomName'].lower()
                     if roomName.startswith("offscreen"):
@@ -723,16 +724,25 @@ def do_slugcat(slugcat: str):
 
                         pathdata = worldsources
                         for worldsource in pathdata:
+                            skipMergedMods = False
+                            skipVanilla = False
+                            for mscregion in mscregions:
+                                if worldName == mscregion and worldsource[1] == "MergedMods":
+                                    skipMergedMods = True
+                                if worldName == mscregion and worldsource[1] == "Vanilla":
+                                    skipVanilla = True
+
+                            if skipMergedMods and roomtype == "room":
+                                print("skipping searching in MergedMods since the room is msc exclusive")
+                                continue
+                            if skipVanilla and roomtype == "room":
+                                print("skipping searching in Vanilla since the room is msc exclusive")
+                                continue
+                            foundspecific = False
                             specificsetting = ""
                             specifictext = ""
-
-                            settingspath = worldsource[0] + subfolder + roomname + "_settings" + specificsetting + ".txt"
-                            if (os.path.exists(settingspath)):
-                                print("Found " + roomname + " settings" + specifictext + " in " + worldsource[1])
-                                worldsource[2] = True
-                                worldsource[3] = settingspath
                             # when world source is msc, check for slugcat specific settings, and if they exist, use them instead
-                            if worldsource == pathdata[1]:
+                            if worldsource == pathdata[0]:
                                 specificsetting = "-" + slugcat
                                 specifictext = " for " + slugcat
 
@@ -741,21 +751,48 @@ def do_slugcat(slugcat: str):
                                     print("Found " + roomname + " settings" + specifictext + " in " + worldsource[1])
                                     worldsource[2] = True
                                     worldsource[3] = settingspath
-
-                        # use mergedmods first
+                                    foundspecific = True
+                                else:
+                                    worldsource[2] = False
+                                    worldsource[3] = ""
+                                    print("No specific settings in " + worldsource[1])
+                            # Onto normal settings
+                            specificsetting = ""
+                            specifictext = ""
+                            settingspath = worldsource[0] + subfolder + roomname + "_settings" + specificsetting + ".txt"
+                            if (os.path.exists(settingspath)):
+                                print("Found " + roomname + " settings" + specifictext + " in " + worldsource[1])
+                                worldsource[2] = True
+                                worldsource[3] = settingspath
+                            else:
+                                # only overwrite if specific doesn't exist
+                                if not foundspecific:
+                                    worldsource[2] = False
+                                    worldsource[3] = ""
+                                print("No generic settings in " + worldsource[1])
+                            
+                        # MSC FIRST
+                        # NOT mergedmods first; will cause issues with duplicate gates in msc and vanilla, since their actual per region usage isn't explicit
+                        # about modifed and merged files; if a file exists in msc, it will only be a full file, either original or overwriting, whereas modified files
+                        # will be found in mergedmods as complete files, if not found in msc
                         if not pathdata[0][2]:
-                            # use msc second
+                            # MERGEDMODS SECOND
+                            # NOT msc second; will cause issues with duplicate gates in msc and vanilla, since their actual per region usage isn't explicit
                             if not pathdata[1][2]:
                                 # vanilla is last priority
                                 if not pathdata[2][2]:
                                     print(roomname + " is not in any world file")
                                 else:
                                     resolvedpath = pathdata[2][3]
+                                    print("this is vanilla")
                             else:
                                 resolvedpath = pathdata[1][3]
+                                print("this is mergedmods")
                         else:
                             resolvedpath = pathdata[0][3]
+                            print("this is msc")
 
+                        # make sure that the resolved path and world source are the same
                         if resolvedpath:
                             print("Using " + resolvedpath)
                             return resolvedpath
@@ -778,7 +815,10 @@ def do_slugcat(slugcat: str):
                                 rawplacedobjects = readline
                         if not hasplacedobjects:
                             print("No Placed Objects in " + roomname + ", Skipping!")
+                            f.close()
                             continue
+                       
+                    f.close()
 
                     rawplacedobjects = str(rawplacedobjects).partition(": ")[-1].rstrip(", \n")
                     listplacedobjects = rawplacedobjects.split(", ")
@@ -848,15 +888,21 @@ def do_slugcat(slugcat: str):
                                             vertices.append(objectdata[l])
                                             l += 1
 
-                                    data = {
-                                        "panelPosX":objectdata[0],
-                                        "panelPosY":objectdata[1],
-                                        "fromDepth":objectdata[2],
-                                        "toDepth":objectdata[3],
-                                        "noise":objectdata[4],
-                                        "imageName":objectdata[5],
-                                        "vertices":vertices
-                                        }
+                                        data = {
+                                            "handles[0]X":objectdata[0],
+                                            "handles[0]Y":objectdata[1],
+                                            "handles[1]X":objectdata[2],
+                                            "handles[1]Y":objectdata[3],
+                                            "handles[2]X":objectdata[4],
+                                            "handles[2]Y":objectdata[5],
+                                            "panelPosX":objectdata[6],
+                                            "panelPosY":objectdata[7],
+                                            "fromDepth":objectdata[8],
+                                            "toDepth":objectdata[9],
+                                            "noise":objectdata[10],
+                                            "imageName":objectdata[11],
+                                            "vertices":vertices
+                                            }
 
                                 if objectname == "DeepProcessing":
                                     data = {
@@ -965,7 +1011,7 @@ def do_slugcat(slugcat: str):
                                         "availableToPlayers":objectdata[4]
                                         }
 
-                                if objectname == "InsectGroup":
+                                elif objectname == "InsectGroup":
                                     data = {
                                         "handlePosX":objectdata[0],
                                         "handlePosY":objectdata[1],
@@ -975,7 +1021,7 @@ def do_slugcat(slugcat: str):
                                         "density":objectdata[5]
                                         }
 
-                                if objectname == "ScavengerOutpost":
+                                elif objectname == "ScavengerOutpost":
                                     data = {
                                         "handlePosX":objectdata[0],
                                         "handlePosY":objectdata[1],
@@ -997,19 +1043,6 @@ def do_slugcat(slugcat: str):
                                     "fadeWithSun":bool(objectdata[6]),
                                     "flat":bool(objectdata[7]),
                                     }
-                                if len(objectdata) > 8:
-                                    data = {
-                                    "strength":objectdata[0],
-                                    "colorType":objectdata[1],
-                                    "handlePosX":objectdata[2],
-                                    "handlePosY":objectdata[3],
-                                    "panelPosX":objectdata[4],
-                                    "panelPosY":objectdata[5],
-                                    "fadeWithSun":bool(objectdata[6]),
-                                    "flat":bool(objectdata[7]),
-                                    "blinkType":objectdata[8],
-                                    "blinkRate":objectdata[9],
-                                    }
                                 if len(objectdata) > 10:
                                     data = {
                                     "strength":objectdata[0],
@@ -1024,8 +1057,21 @@ def do_slugcat(slugcat: str):
                                     "blinkRate":objectdata[9],
                                     "nightLight":bool(objectdata[10])
                                     }
+                                elif len(objectdata) > 8:
+                                    data = {
+                                    "strength":objectdata[0],
+                                    "colorType":objectdata[1],
+                                    "handlePosX":objectdata[2],
+                                    "handlePosY":objectdata[3],
+                                    "panelPosX":objectdata[4],
+                                    "panelPosY":objectdata[5],
+                                    "fadeWithSun":bool(objectdata[6]),
+                                    "flat":bool(objectdata[7]),
+                                    "blinkType":objectdata[8],
+                                    "blinkRate":objectdata[9],
+                                    }
                                     
-                            if objectname == "LightFixture":
+                            elif objectname == "LightFixture":
                                 data = {
                                     "type":objectdata[0],
                                     "panelPosX":objectdata[1],
@@ -1033,7 +1079,7 @@ def do_slugcat(slugcat: str):
                                     "randomSeed":objectdata[3]
                                     }
 
-                            if objectname == "SSLightRod":
+                            elif objectname == "SSLightRod":
                                 data = {
                                     "panelPosX":objectdata[0],
                                     "panelPosY":objectdata[1],
@@ -1043,7 +1089,7 @@ def do_slugcat(slugcat: str):
                                     "brightness":objectdata[5]
                                     }
 
-                            if objectname == "CellDistortion":
+                            elif objectname == "CellDistortion":
                                 data = {
                                     "handlePosX":objectdata[0],
                                     "handlePosY":objectdata[1],
@@ -1055,7 +1101,7 @@ def do_slugcat(slugcat: str):
                                     "timeMult":objectdata[7]
                                     }
 
-                            if objectname == "OESphere":
+                            elif objectname == "OESphere":
                                 data = {
                                     "handlePosX":objectdata[0],
                                     "handlePosY":objectdata[1],
@@ -1065,7 +1111,7 @@ def do_slugcat(slugcat: str):
                                     "intensity":objectdata[5]
                                     }
 
-                            if objectname == "SnowSource":
+                            elif objectname == "SnowSource":
                                 data = {
                                     "shape":objectdata[0],
                                     "handlePosX":objectdata[1],
@@ -1076,7 +1122,7 @@ def do_slugcat(slugcat: str):
                                     "noisiness":objectdata[6]
                                     }
 
-                            if objectname == "LocalBlizzard":
+                            elif objectname == "LocalBlizzard":
                                 data = {
                                     "handlePosX":objectdata[0],
                                     "handlePosY":objectdata[1],
@@ -1087,7 +1133,7 @@ def do_slugcat(slugcat: str):
                                     "angle":objectdata[6]
                                     }
 
-                            if objectname == "LightingMachine":
+                            elif objectname == "LightingMachine":
                                 data = {
                                     "panelPosX":objectdata[0],
                                     "panelPosY":objectdata[1],
@@ -1112,7 +1158,7 @@ def do_slugcat(slugcat: str):
                                     "light":bool(objectdata[19])
                                     }
 
-                            if objectname == "EnergySwirl":
+                            elif objectname == "EnergySwirl":
                                 data = {
                                     "colorType":objectdata[0],
                                     "handlePosX":objectdata[1],
@@ -1122,7 +1168,7 @@ def do_slugcat(slugcat: str):
                                     "depth":objectdata[5]
                                     }
 
-                            if objectname == "DayNightSettings":
+                            elif objectname == "DayNightSettings":
                                 data = {
                                     "panelPosX":objectdata[0],
                                     "panelPosY":objectdata[1],
@@ -1130,7 +1176,7 @@ def do_slugcat(slugcat: str):
                                     "nightPalette":objectdata[3]
                                     }
 
-                            if objectname == "FairyParticleSettings":
+                            elif objectname == "FairyParticleSettings":
                                 data = {
                                     "panelPosX":objectdata[0],
                                     "panelPosY":objectdata[1],
@@ -1255,7 +1301,7 @@ def do_slugcat(slugcat: str):
                             shortcutline = 6
                             roomtilesline = 8
 
-                        print("length of roomfile: " + len(roomfile))
+                        print("length of roomfile: " + str(len(roomfile)))
 
                         i = 1
                         while i < len(roomfile):
