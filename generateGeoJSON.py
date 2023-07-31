@@ -31,7 +31,7 @@ four_directions = [np.array([-1,0]),np.array([0,-1]),np.array([1,0]),np.array([0
 center_of_tile = np.array([10,10])
 # File Paths
 screenshots_root = "./py-input"
-output_folder = "./py-output"
+output_folder = "./Post_Shortcuts_py-output"
 streaming_assets = "C:\Program Files (x86)\Steam\steamapps\common\Rain World\RainWorld_Data\StreamingAssets"
 mergedmodsprefix = streaming_assets + "\mergedmods\world"
 mscprefix = streaming_assets + "\mods\moreslugcats\world"
@@ -40,9 +40,9 @@ vanillaprefix = streaming_assets + "\world"
 optimize_geometry = True
 skip_existing_tiles = False
 # None, "yellow, white, red, gourmand, artificer, rivulet, spear, saint, inv", "yellow", "yellow, white, red"
-only_slugcat = None
+only_slugcat = "white"
 # None, "cc", "cc, su, ss, sb, sh"
-only_region = None
+only_region = "su"
 # Export
 task_export_tiles = False
 task_export_features = True
@@ -50,8 +50,8 @@ task_export_room_features = False
 task_export_connection_features = False
 task_export_geo_features = False
 task_export_creatures_features = False
-task_export_placedobject_features = True
-task_export_shortcut_features = False
+task_export_placedobject_features = False
+task_export_shortcut_features = True
 task_export_roomtag_features = False
 task_export_batmigrationblockages_features = False
 
@@ -1236,7 +1236,14 @@ def do_slugcat(slugcat: str):
                 ismergedmods = False
                 ismsc = False
                 isvanilla = False
-                worldsources = ([mergedmodsprefix,"MergedMods",ismergedmods,mergedmodspath],[mscprefix,"MSC",ismsc,mscpath],[vanillaprefix,"Vanilla",isvanilla,vanillapath])
+                dodimensions = True
+                dolight = False
+                docamera = False
+                doborder = False
+                donodes = True
+                doshortcuts = False
+                mscregions = ("rm","vs","ms","lc","hr","cl","oe","ug","dm","lm")
+                worldsources = ([mscprefix,"MSC",ismsc,mscpath],[mergedmodsprefix,"MergedMods",ismergedmods,mergedmodspath],[vanillaprefix,"Vanilla",isvanilla,vanillapath])
                 print("starting shortcut task!")
                 for roomname, room in rooms.items():
                     roomName = room['roomName'].lower()
@@ -1250,36 +1257,94 @@ def do_slugcat(slugcat: str):
                     # No need to capture the isolated gate shelters within the vanilla world file, its not like they contain shortcuts '\_:\_/'
 
                     def fileresolver(roomName):
+                        # GATE SHELTERS SMH
                         # check for gate rooms, not that they have shortcuts... :(
-                        if roomName.startswith("gate"):
-                            subfolder = "\gates\\"
-                        else:
-                            subfolder = "\\" + worldName + "-rooms\\"
-
                         # read and write which world sources a room is found in
+                        # need to cycle through gate and normal rooms
+                        # slugcat specific and general settings, skip this for vanilla and merged
+
                         pathdata = worldsources
                         for worldsource in pathdata:
-                            workingpath = worldsource[0] + subfolder + roomName + ".txt"
-                            if (os.path.exists(workingpath)):
-                                print("Found " + roomname + " in " + worldsource[1])
-                                worldsource[2] = True
-                                worldsource[3] = workingpath
-
-                        # use mergedmods first
-                        if not pathdata[0][2]:
-                            # use msc second
-                            if not pathdata[1][2]:
-                                # vanilla is last priority
-                                if not pathdata[2][2]:
-                                    print(roomname + " is not in any world file")
-                                else:
-                                    resolvedpath = pathdata[2][3]
+                            if roomName.startswith("gate"):
+                                subfolder = "\gates\\"
+                                roomtype = "gate"
                             else:
-                                resolvedpath = pathdata[1][3]
-                        else:
-                            resolvedpath = pathdata[0][3]
+                                subfolder = "\\" + worldName + "-rooms\\"
+                                roomtype = "room"
 
-                        if resolvedpath:
+                            skipMergedMods = False
+                            skipVanilla = False
+                            for mscregion in mscregions:
+                                if worldName == mscregion and worldsource[1] == "MergedMods":
+                                    skipMergedMods = True
+                                if worldName == mscregion and worldsource[1] == "Vanilla":
+                                    skipVanilla = True
+
+                            if skipMergedMods and roomtype == "room":
+                                print("skipping MergedMods: msc exclusive room")
+                                continue
+                            if skipVanilla and roomtype == "room":
+                                print("skipping Vanilla: msc exclusive room")
+                                continue
+                            
+                            roomfilepath = worldsource[0] + subfolder + roomname + ".txt"
+                            if (os.path.exists(roomfilepath)):
+                                print("Found " + roomtype + " " + roomname + " file in " + worldsource[1])
+                                worldsource[2] = True
+                                worldsource[3] = roomfilepath
+                            else:
+                                if worldsource[1] == "Vanilla":
+                                    print("No " + roomtype + " file in " + worldsource[1] + " : Checking the gate shelters folder")
+                                    subfolder = "\gate shelters\\"
+                                    roomtype = "gate shelter"
+                                    roomfilepath = worldsource[0] + subfolder + roomname + ".txt"
+                                    if (os.path.exists(roomfilepath)):
+                                        print("Found " + roomtype + " " + roomname + " file in " + worldsource[1])
+                                        worldsource[2] = True
+                                        worldsource[3] = roomfilepath
+                                else:
+                                    print("No " + roomtype + " file in " + worldsource[1])
+                                    continue
+                            
+                        # MSC FIRST
+                        # NOT mergedmods first; will cause issues with duplicate gates in msc and vanilla, since their actual per region usage isn't explicit
+                        # about modifed and merged files; if a file exists in msc, it will only be a full file, either original or overwriting, whereas modified files
+                        # will be found in mergedmods as complete files, if not found in msc
+                        
+                        mscusedname = os.path.basename(pathdata[0][3]).replace(".txt","")
+                        mergedmodsusedname = os.path.basename(pathdata[1][3]).replace(".txt","")
+                        vanillausedname = os.path.basename(pathdata[2][3]).replace(".txt","")
+
+                        resolvedpath = ""
+                        if not pathdata[0][2] and mscusedname != roomname:
+                            # MERGEDMODS SECOND
+                            # NOT msc second; will cause issues with duplicate gates in msc and vanilla, since their actual per region usage isn't explicit
+                            if not pathdata[1][2] and mergedmodsusedname != roomname:
+                                # vanilla is last priority
+                                if not pathdata[2][2] and vanillausedname != roomname:
+                                    print(roomname + " is not in any world file")
+                                elif vanillausedname == roomname:
+                                    resolvedpath = pathdata[2][3]
+                                    print("this is vanilla")
+                            elif mergedmodsusedname == roomname:
+                                resolvedpath = pathdata[1][3]
+                                print("this is mergedmods")
+                        elif mscusedname == roomname:
+                            resolvedpath = pathdata[0][3]
+                            print("this is msc")
+                        else:
+                            if mscusedname == roomname:
+                                resolvedpath = pathdata[0][3]
+                                print("matched msc")
+                            if mergedmodsusedname == roomname:
+                                resolvedpath = pathdata[1][3]
+                                print("matched mergedmods")
+                            if vanillausedname == roomname:
+                                resolvedpath = pathdata[2][3]
+                                print("matched vanilla")
+
+                        # make sure that the resolved path and world source are the same
+                        if resolvedpath != "":
                             print("Using " + resolvedpath)
                             return resolvedpath
 
@@ -1309,195 +1374,263 @@ def do_slugcat(slugcat: str):
                                 if i == roomnameline:
                                     print("found room name at line " + str(i) + " in " + os.path.basename(filepath))
                                     fileroomname = line
-                                if i == dimensionline:
+                                if i == dimensionline and dodimensions:
                                     print("found dimensions at line " + str(i) + " in " + os.path.basename(filepath))
                                     roomdimensions = line
-                                if i == lightline:
+                                if i == lightline and dolight:
                                     print("found light data at line " + str(i) + " in " + os.path.basename(filepath))
                                     roomlight = line
-                                if i == cameraline:
+                                if i == cameraline and docamera:
                                     print("found camera map at line " + str(i) + " in " + os.path.basename(filepath))
                                     roomcameras = line
-                                if i == borderline:
+                                if i == borderline and doborder:
                                     print("found border type at line " + str(i) + " in " + os.path.basename(filepath))
                                     roomborder = line
                                 if i == itemline:
                                     print("found items at line " + str(i) + " in " + os.path.basename(filepath))
                                     roomitems = line
-                                if i == shortcutline:
+                                if i == shortcutline and doshortcuts:
                                     print("found connection map at line " + str(i) + " in " + os.path.basename(filepath))
                                     connectionsmap = line
-                                if i == roomtilesline:
+                                if i == roomtilesline and donodes:
                                     print("found room tiles at line " + str(i) + " in " + os.path.basename(filepath))
                                     roomfilenodes = line
 
                                 i += 1
 
-                    roomdimensions = roomdimensions.strip("\n").split("|")
-                    roomdimensions[0].split("*")
-                    roomwidth = roomdimensions[0]
-                    roomheight = roomdimensions[1]
-                    waterlevel = roomdimensions[2]
-                    infrontofterrain = roomdimensions[3]
+                    if dodimensions:
+                        roomdimensions = roomdimensions.strip("\n").split("|")
+                        roomdim = roomdimensions[0].split("*")
+                        roomwidth = int(roomdim[0])
+                        roomheight = int(roomdim[1])
+                        waterlevel = roomdimensions[1]
+                        infrontofterrain = roomdimensions[2]
 
-                    roomlight = roomlight.strip("\n").split("|")
-                    roomlight[0].split("*")
-                    angle1 = roomlight[0]
-                    angle2 = roomlight[1]
-                    value3 = roomlight[2]
-                    value4 = roomlight[3]
+                    if dolight:
+                        roomlight = roomlight.strip("\n").split("|")
+                        roomangle = roomlight[0].split("*")
+                        angle1 = roomangle[0]
+                        angle2 = roomangle[1]
+                        value3 = roomlight[1]
+                        value4 = roomlight[2]
 
-                    cameras = {}
-                    roomcameras = roomcameras.strip("\n").split("|")
-                    for camera in roomcameras:
-                        cameras["camera"] = roomcameras[camera.index(camera)]
-                        coords = camera.split(",")
-                        cameras["camX"] = coords[0]
-                        cameras["camY"] = coords[1]
+                    if docamera:
+                        cameras = {}
+                        roomcameras = roomcameras.strip("\n").split("|")
+                        cameraindex = 0
+                        cameralist = []
+                        for camera in roomcameras:
+                            camera = roomcameras[camera.index(camera)]
+                            coords = camera.split(",")
+                            camX = coords[0]
+                            camY = coords[1]
+                        
+                            cameras = ("camera: " + camera,"camX: " + camX,"camY: " + camY)
 
-                        cameras.append(cameras["camera"],cameras["camX"],cameras["camY"])
+                            cameralist.append(cameras)
+                            cameraindex += 1
 
-                    roomborder = roomborder.strip("Border: \n")
+                    if doborder:
+                        roomborder = roomborder.strip("Border: \n")
+                        itemslist = []
+                        if len(roomitems) > 1:
+                            items = {}
+                            roomitems = roomitems.rstrip("|\n").split("|")
+                            for item in roomitems:
+                                item = item.split(",")
+                                iitem = item[0]
+                                tileX = item[1]
+                                tileY = item[2]
+                                items = ("item: " + str(iitem),"tileX" + str(tileX),"tileY" + str(tileY))
 
-                    if len(roomitems) > 1:
-                        items = {}
-                        roomitems = roomitems.rstrip("|\n").split("|")
-                        for item in roomitems:
-                            item = item.split(",")
-                            items["item"] = item[0]
-                            items["tileX"] = item[1]
-                            items["tileY"] = item[2]
+                                itemslist.append(items)
 
-                            items.append(items["item"],items["tileX"],items["tileY"])
+                    roomcoords = room['roomcoords']
+                    size_x = room['size'][0]
+                    size_y = room['size'][1]
+                    if donodes:
+                        # Find Nodes and Other good stuff
+                        roomfilenodes = roomfilenodes.rstrip("|\n").split("|")
+                        terraintypes = ("Air","Solid","Slope","Floor","ShortcutEntrance")
+                        shortcuttypes = ("DeadEnd","Normal","RoomExit","CreatureHole","NPCTransportation","RegionTransportation")
+                        roomnodetypes = ("Exit","Den","RegionTransportation","SideExit","SkyExit","SeaExit","BatHive","GarbageHoles")
+                        # simple in room coords
+                        roomtilecoords = []
+                        roomtiledata = []
+                        roomtiles = []
+                        tilecolumn = []
+                        tilearray = []
 
-                    # Find Nodes and Other good stuff
-                    roomfilenodes = roomfilenodes.rstrip("|\n").split("|")
-                    terraintypes = ((0,"Air"),(1,"Solid"),(2,"Slope"),(3,"Floor"),(4,"ShortcutEntrance"))
-                    shortcuttypes = ((0,"DeadEnd"),(1,"Normal"),(2,"RoomExit"),(3,"CreatureHole"),(4,"NPCTransportation"),(5,"RegionTransportation"))
-                    roomnodetypes = ("Exit","Den","RegionTransportation","SideExit","SkyExit","SeaExit","BatHive","GarbageHoles")
+                        # convert file nodes into an array, not just a list
+                        print("room width: " + str(size_x))
+                        print("room height: " + str(size_y))
+                        print("length of roomfilenodes: " + str(len(roomfilenodes)))
+                        print("width times height: " + str((size_x * size_y)))
+                        for column in range(0,size_x):
+                            tilecolumn = []
+                            for tile in range((size_y * column) - size_y,size_y * column):
+                                tilecolumn.append(roomfilenodes[tile])
 
-                    roomtiledata = []
-                    for tile in roomfilenodes:
-                        tileentries = tile.split(",")
-                        tiletype = tileentries[0]
-                        for terraintype in terraintypes:
-                            if terraintype[0] == tiletype:
-                                tiletype = terraintype[1]
+                            tilearray.append((tilecolumn))
+                            #print("Length of column " + str(column) + ": " + str(len(tilecolumn)))
+                            #print(tilecolumn)
 
-                        tileattributes = []
-                        v = 1
-                        while v < len(tileentries):
-                            tileattributes.append(tileentries[v])
-                            v += 1
+                        # top down, left right
+                        # Start at vertical columns
+                        for x in range(1,size_x,1):
+                            tileX = x
+                            # cycle through the same x, changing in y, the horizontal rows
+                            # Start at top left, tile 0,0, then go down, increasing in y until reaching size_y, then stepping to the right by 1 x, starting from the top down again
+                            # start with highest Y, uhm well we need to invert the current y coords, since the first tile is actually at the max y in terms of having an origin at the bottom left
+                            for y in range(1,size_y,1):
+                                tileIsWorthy = False
+                                tileY = y
+                                tilecoords = (tileX - 1,(size_y - tileY - 1))
 
-                        verticalbeam = False
-                        horizontalbeam = False
-                        shortcut = None
-                        wallbehind = False
-                        hivetile = False
-                        waterfall = False
-                        garbagehole = False
-                        wormgrass = False
+                                tile = tilearray[tileX][tileY]
+                                # start at 0, end at x*y
+                                tileentries = tile.split(",")
+                                terraintype = int(tileentries[0])
 
-                        tiledata = {}
-                        for value in tileattributes:
-                            if value == 1:
-                                tiledata["verticalbeam"] = True
-                            if value == 2:
-                                tiledata["horizontalbeam"] = True
-                            if value == 3:
-                                tiledata["shortcut"] = shortcuttypes[1][1]
-                            if value == 4:
-                                tiledata["shortcut"] = shortcuttypes[2][1]
-                            if value == 5:
-                                tiledata["shortcut"] = shortcuttypes[3][1]
-                            if value == 6:
-                                tiledata["wallbehind"] = True
-                            if value == 7:
-                                tiledata["hivetile"] = True
-                            if value == 8:
-                                tiledata["waterfall"] = True
-                            if value == 9:
-                                tiledata["shortcut"] = shortcuttypes[4][1]
-                            if value == 10:
-                                tiledata["garbagehole"] = True
-                            if value == 11:
-                                tiledata["wormgrass"] = True
-                            if value == 12:
-                                tiledata["shortcut"] = shortcuttypes[5][1]
+                                if terraintype == 0:
+                                    terraintype = terraintypes[0]
+                                if terraintype == 1:
+                                    terraintype = terraintypes[1]
+                                if terraintype == 2:
+                                    terraintype = terraintypes[2]
+                                if terraintype == 3:
+                                    terraintype = terraintypes[3]
+                                if terraintype == 4:
+                                    terraintype = terraintypes[4]
+                                    tileIsWorthy = True
+                                tileattributes = []
+                                v = 1
+                                while v < len(tileentries):
+                                    tileattributes.append(tileentries[v])
+                                    v += 1
 
-                        tiledata = {
-                            "type":tiletype
-                            }
+                                verticalbeam = False
+                                horizontalbeam = False
+                                shortcut = None
+                                wallbehind = False
+                                hivetile = False
+                                waterfall = False
+                                garbagehole = False
+                                wormgrass = False
 
-                        if len(tile) > 1:
-                            tiledata["type"] = tiletype
+                                tiledata = {}
+                                tiledata["coordX"] = tilecoords[0]
+                                tiledata["coordY"] = tilecoords[1]
+                                tiledata["terrain"] = terraintype
+                                
+                                for value in tileattributes:
+                                    value = int(value)
+                                    if value == 1:
+                                        tiledata["verticalbeam"] = True
+                                    if value == 2:
+                                        tiledata["horizontalbeam"] = True
+                                    if value == 3:
+                                        tiledata["shortcut"] = shortcuttypes[1]
+                                        tileIsWorthy = True
+                                    if value == 4:
+                                        tiledata["shortcut"] = shortcuttypes[2]
+                                        tileIsWorthy = True
+                                    if value == 5:
+                                        tiledata["shortcut"] = shortcuttypes[3]
+                                        tileIsWorthy = True
+                                    if value == 6:
+                                        tiledata["wallbehind"] = True
+                                    if value == 7:
+                                        tiledata["hivetile"] = True
+                                        tileIsWorthy = True
+                                    if value == 8:
+                                        tiledata["waterfall"] = True
+                                        tileIsWorthy = True
+                                    if value == 9:
+                                        tiledata["shortcut"] = shortcuttypes[4]
+                                        tileIsWorthy = True
+                                    if value == 10:
+                                        tiledata["garbagehole"] = True
+                                        tileIsWorthy = True
+                                    if value == 11:
+                                        tiledata["wormgrass"] = True
+                                        tileIsWorthy = True
+                                    if value == 12:
+                                        tiledata["shortcut"] = shortcuttypes[5]
+                                        tileIsWorthy = True
 
-                            tiledata = [
-                            tiledata["type"],
-                            *tiledata["wallbehind"],
-                            *tiledata["verticalbeam"],
-                            *tiledata["horizontalbeam"],
-                            *tiledata["hivetile"],
-                            *tiledata["waterfall"],
-                            *tiledata["garbagehole"],
-                            *tiledata["wormgrass"],
-                            *tiledata["shortcut"]
-                            ]
+                                # only record significant tiles
+                                if tileIsWorthy:
+                                    roomtiledata.append(tilecoords)
+                                    #roomtiles.append(tiledata)
+                                    nodecoords = room['roomcoords'] + center_of_tile + 20* np.array(tilecoords)
+                                    shortcut_features.append(geojson.Feature(
+                                        geometry=geojson.Point(np.array(nodecoords).round().tolist()),
+                                        properties={
+                                            "roomname":roomname,
+                                            "roomtile":tiledata,
+                                            }))
 
-                        roomtiledata.append(tiledata)
+                                #roomtilecoords.append(tilecoords)
 
+                        # Take the proccessed worthy tile array, then match up adjacent tiles of the same type
+                      #  for worthytile in tilearray:
+                          #  if worthytile.terrain == "Solid" and worthytile.shorcut == "Normal
+
+
+                    #print(roomtilecoords)
                     print(roomtiledata)
 
-                    roomshortcuts = []
-                    a = str(connectionsmap).rstrip("|\n")
-                    b = a.split("|")
-                    shortcutsheader = {
-                        "roomgen":b[0],
-                        "roomlength":b[1],
-                        "roommaplength":b[2]
-                        }
-
-                    l = 3
-                    connpaths = []
-                    while l < len(b):
-                        connpaths.append(b[l])
-                        l += 1
-
-                    shortcuts = []
-                    for connpath in connpaths:
-                        c = str(connpath).rstrip(",").split(",")
-                        connheader = {
-                            "type":c[0],
-                            "shortcutlength":c[1],
-                            "submerged":c[2],
-                            "viewedbycamera":c[3],
-                            "entrancewidth":c[4]
+                    if doshortcuts:
+                        roomshortcuts = []
+                        a = str(connectionsmap).rstrip("|\n")
+                        b = a.split("|")
+                        shortcutsheader = {
+                            "roomgen":b[0],
+                            "roomlength":b[1],
+                            "roommaplength":b[2]
                             }
 
-                        e = 5
-                        connectivity = []
-                        while e < len(c):
-                            connectivity.append(c[e])
-                            e += 1
+                        l = 3
+                        connpaths = []
+                        while l < len(b):
+                            connpaths.append(b[l])
+                            l += 1
 
-                        connpairs = []
-                        shortcut = []
-                        for connpair in connectivity:
-                            d = str(connpair).split(" ")
-                            connpairs.append((d[0],d[1]))
+                        shortcuts = []
+                        for connpath in connpaths:
+                            c = str(connpath).rstrip(",").split(",")
+                            connheader = {
+                                "type":c[0],
+                                "shortcutlength":c[1],
+                                "submerged":c[2],
+                                "viewedbycamera":c[3],
+                                "entrancewidth":c[4]
+                                }
 
-                        shortcut = (connheader,connpairs)
+                            e = 5
+                            connectivity = []
+                            while e < len(c):
+                                connectivity.append(c[e])
+                                e += 1
 
-                        shortcuts.append(shortcut) 
+                            connpairs = []
+                            shortcut = []
+                            for connpair in connectivity:
+                                d = str(connpair).split(" ")
+                                connpairs.append((d[0],d[1]))
 
-                    roomheader = {
-                        "room":roomname
-                        }
-                    roomshortcuts = (roomheader,shortcutsheader,shortcuts)
-                    shortcut_features.append(geojson.Feature(
-                        geometry=geojson.MultiLineString(),
-                        properties=roomshortcuts))
+                            shortcut = (connheader,connpairs)
+
+                            shortcuts.append(shortcut) 
+
+                        roomheader = {
+                            "room":roomname
+                            }
+                        roomshortcuts = (roomheader,shortcutsheader,shortcuts)
+                        shortcut_features.append(geojson.Feature(
+                            geometry=geojson.MultiLineString(),
+                            properties=roomshortcuts))
                 print("shortcuts task done!")
 
             ## RoomTags
