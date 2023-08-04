@@ -242,17 +242,34 @@ public class MapExporter : BaseUnityPlugin
             else if (self.roomSettings.effects[i].type.ToString() == "CGCameraZoom") self.roomSettings.effects.RemoveAt(i); // bad for screenies
             else if (((int)self.roomSettings.effects[i].type) >= 27 && ((int)self.roomSettings.effects[i].type) <= 36) self.roomSettings.effects.RemoveAt(i); // insects bad for screenies
         }
+        // Tryna get everything to present nicely on screenshot, and also maybe fix that bubble grass index out of array error for inv/ss
         foreach (var item in self.roomSettings.placedObjects) {
             if (item.type == PlacedObject.Type.InsectGroup) item.active = false;
             if (item.type == PlacedObject.Type.FlyLure
                 || item.type == PlacedObject.Type.JellyFish
                 || item.type == PlacedObject.Type.BubbleGrass
                 || item.type == PlacedObject.Type.TempleGuard
+                || item.type == PlacedObject.Type.StuckDaddy
                 || item.type == PlacedObject.Type.Hazer
+                || item.type == PlacedObject.Type.Vine
+                || item.type == PlacedObject.Type.ScavengerOutpost
+                || item.type == PlacedObject.Type.DeadTokenStalk
+                || item.type == PlacedObject.Type.SeedCob
+                || item.type == PlacedObject.Type.DeadSeedCob
                 || item.type == PlacedObject.Type.DeadHazer
                 || item.type == PlacedObject.Type.HangingPearls
                 || item.type == PlacedObject.Type.VultureGrub
-                || item.type == PlacedObject.Type.DeadVultureGrub) self.waitToEnterAfterFullyLoaded = Mathf.Max(self.waitToEnterAfterFullyLoaded, 20);
+                || item.type == PlacedObject.Type.HangingPearls
+                || item.type == PlacedObject.Type.DeadVultureGrub
+                || item.type == MoreSlugcatsEnums.PlacedObjectType.BigJellyFish
+                || item.type == MoreSlugcatsEnums.PlacedObjectType.GlowWeed
+                || item.type == MoreSlugcatsEnums.PlacedObjectType.GooieDuck
+                || item.type == MoreSlugcatsEnums.PlacedObjectType.RotFlyPaper
+                || item.type == MoreSlugcatsEnums.PlacedObjectType.DevToken
+                || item.type == MoreSlugcatsEnums.PlacedObjectType.LillyPuck
+                || item.type == MoreSlugcatsEnums.PlacedObjectType.Stowaway
+                || item.type == MoreSlugcatsEnums.PlacedObjectType.MoonCloak
+                || item.type == MoreSlugcatsEnums.PlacedObjectType.HRGuard) self.waitToEnterAfterFullyLoaded = Mathf.Max(self.waitToEnterAfterFullyLoaded, 20);
         }
         orig(self);
     }
@@ -302,9 +319,9 @@ public class MapExporter : BaseUnityPlugin
     {
         // Use safari mode, it's very sanitary
         manager.rainWorld.safariMode = true;
-        manager.rainWorld.safariRainDisable = true;
+        manager.rainWorld.safariRainDisable = false;
         manager.rainWorld.safariSlugcat = SlugcatStats.Name.White;
-        manager.rainWorld.safariRegion = "SU";
+        manager.rainWorld.safariRegion = "SS";
 
         orig(self, manager);
 
@@ -323,12 +340,12 @@ public class MapExporter : BaseUnityPlugin
 
         // Begone 
         self.GetStorySession.saveState.deathPersistentSaveData.theMark = false;
-       // self.GetStorySession.saveState.deathPersistentSaveData.redsDeath = false;
-       // self.GetStorySession.saveState.deathPersistentSaveData.reinforcedKarma = false;
+        self.GetStorySession.saveState.deathPersistentSaveData.redsDeath = false;
+        self.GetStorySession.saveState.deathPersistentSaveData.reinforcedKarma = false;
        // self.GetStorySession.saveState.deathPersistentSaveData.altEnding = false;
-       // self.GetStorySession.saveState.hasRobo = false;
-       // self.GetStorySession.saveState.redExtraCycles = false;
-       // self.GetStorySession.saveState.deathPersistentSaveData.ascended = false;
+        self.GetStorySession.saveState.hasRobo = false;
+        self.GetStorySession.saveState.redExtraCycles = false;
+        self.GetStorySession.saveState.deathPersistentSaveData.ascended = false;
 
         // plus more
         self.GetStorySession.saveState.deathPersistentSaveData.PoleMimicEverSeen = true;
@@ -538,9 +555,9 @@ public class MapExporter : BaseUnityPlugin
 
             if (Screenshots) {
                 string filename = PathOfScreenshot(game.StoryCharacter.value, room.world.name, room.name, i);
-
+                // nah always overwrite, cuz why not?
                 if (!File.Exists(filename)) {
-                    ScreenCapture.CaptureScreenshot(filename);
+                ScreenCapture.CaptureScreenshot(filename);
                 }
             }
 

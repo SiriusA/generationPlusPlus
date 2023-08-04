@@ -30,30 +30,30 @@ ofscreensize = np.array([1200,400])
 four_directions = [np.array([-1,0]),np.array([0,-1]),np.array([1,0]),np.array([0,1])]
 center_of_tile = np.array([10,10])
 # File Paths
-screenshots_root = "./py-input"
-output_folder = "./Post_Shortcuts_py-output"
+screenshots_root = "C:\Program Files (x86)\Steam\steamapps\common\Rain World\export"
+output_folder = "./Adjusted_Dev_Maps_py-output"
 streaming_assets = "C:\Program Files (x86)\Steam\steamapps\common\Rain World\RainWorld_Data\StreamingAssets"
 mergedmodsprefix = streaming_assets + "\mergedmods\world"
 mscprefix = streaming_assets + "\mods\moreslugcats\world"
 vanillaprefix = streaming_assets + "\world"
 
-optimize_geometry = True
+optimize_geometry = False
 skip_existing_tiles = False
 # None, "yellow, white, red, gourmand, artificer, rivulet, spear, saint, inv", "yellow", "yellow, white, red"
-only_slugcat = "white"
+only_slugcat = "inv"
 # None, "cc", "cc, su, ss, sb, sh"
 only_region = "su"
 # Export
-task_export_tiles = False
+task_export_tiles = True
 task_export_features = True
-task_export_room_features = False
-task_export_connection_features = False
-task_export_geo_features = False
-task_export_creatures_features = False
-task_export_placedobject_features = False
-task_export_shortcut_features = True
-task_export_roomtag_features = False
-task_export_batmigrationblockages_features = False
+task_export_room_features = True
+task_export_connection_features = True
+task_export_geo_features = True
+task_export_creatures_features = True
+task_export_placedobject_features = True
+task_export_tilenode_features = True
+task_export_roomtag_features = True
+task_export_batmigrationblockages_features = True
 
 # External data
 config = {
@@ -81,7 +81,7 @@ config = {
     "task_export_creatures_features":task_export_creatures_features,
     "task_export_placedobject_features":task_export_placedobject_features,
     "task_export_roomtag_features":task_export_roomtag_features,
-    "task_export_shortcut_features":task_export_shortcut_features,
+    "task_export_tilenode_features":task_export_tilenode_features,
     "task_export_batmigrationblockages_features":task_export_batmigrationblockages_features
     }
 
@@ -1226,9 +1226,9 @@ def do_slugcat(slugcat: str):
                 print("placed object task done!")
            
             ##Shortcuts
-            if task_export_shortcut_features:
+            if task_export_tilenode_features:
                 shortcut_features = []
-                features["shortcut_features"] = shortcut_features
+                features["tilenode_features"] = shortcut_features
                 worldName = regiondata["acronym"].lower()
                 mergedmodspath = ""
                 vanillapath = ""
@@ -1406,45 +1406,6 @@ def do_slugcat(slugcat: str):
                         waterlevel = roomdimensions[1]
                         infrontofterrain = roomdimensions[2]
 
-                    if dolight:
-                        roomlight = roomlight.strip("\n").split("|")
-                        roomangle = roomlight[0].split("*")
-                        angle1 = roomangle[0]
-                        angle2 = roomangle[1]
-                        value3 = roomlight[1]
-                        value4 = roomlight[2]
-
-                    if docamera:
-                        cameras = {}
-                        roomcameras = roomcameras.strip("\n").split("|")
-                        cameraindex = 0
-                        cameralist = []
-                        for camera in roomcameras:
-                            camera = roomcameras[camera.index(camera)]
-                            coords = camera.split(",")
-                            camX = coords[0]
-                            camY = coords[1]
-                        
-                            cameras = ("camera: " + camera,"camX: " + camX,"camY: " + camY)
-
-                            cameralist.append(cameras)
-                            cameraindex += 1
-
-                    if doborder:
-                        roomborder = roomborder.strip("Border: \n")
-                        itemslist = []
-                        if len(roomitems) > 1:
-                            items = {}
-                            roomitems = roomitems.rstrip("|\n").split("|")
-                            for item in roomitems:
-                                item = item.split(",")
-                                iitem = item[0]
-                                tileX = item[1]
-                                tileY = item[2]
-                                items = ("item: " + str(iitem),"tileX" + str(tileX),"tileY" + str(tileY))
-
-                                itemslist.append(items)
-
                     roomcoords = room['roomcoords']
                     size_x = room['size'][0]
                     size_y = room['size'][1]
@@ -1531,7 +1492,6 @@ def do_slugcat(slugcat: str):
                                         tiledata["horizontalbeam"] = True
                                     if value == 3:
                                         tiledata["shortcut"] = shortcuttypes[1]
-                                        tileIsWorthy = True
                                     if value == 4:
                                         tiledata["shortcut"] = shortcuttypes[2]
                                         tileIsWorthy = True
@@ -1573,10 +1533,96 @@ def do_slugcat(slugcat: str):
 
                                 #roomtilecoords.append(tilecoords)
 
-                        # Take the proccessed worthy tile array, then match up adjacent tiles of the same type
-                      #  for worthytile in tilearray:
-                          #  if worthytile.terrain == "Solid" and worthytile.shorcut == "Normal
+                    if dolight:
+                        roomlight = roomlight.strip("\n").split("|")
+                        roomangle = roomlight[0].split("*")
+                        angle1 = roomangle[0]
+                        angle2 = roomangle[1]
+                        value3 = roomlight[1]
+                        value4 = roomlight[2]
 
+                    if docamera:
+                        cameras = {}
+                        roomcameras = roomcameras.strip("\n").split("|")
+                        cameraindex = 0
+                        cameralist = []
+                        for camera in roomcameras:
+                            camera = roomcameras[camera.index(camera)]
+                            coords = camera.split(",")
+                            camX = coords[0]
+                            camY = coords[1]
+                        
+                            cameras = ("camera: " + camera,"camX: " + camX,"camY: " + camY)
+
+                            cameralist.append(cameras)
+                            cameraindex += 1
+
+                    if doborder:
+                        roomborder = roomborder.strip("Border: \n")
+                        itemslist = []
+                        if len(roomitems) > 1:
+                            items = {}
+                            roomitems = roomitems.rstrip("|\n").split("|")
+                            for item in roomitems:
+                                item = item.split(",")
+                                iitem = item[0]
+                                tileX = item[1]
+                                tileY = item[2]
+                                items = ("item: " + str(iitem),"tileX" + str(tileX),"tileY" + str(tileY))
+
+                                itemslist.append(items)
+
+                    # Take the proccessed worthy tile array, then match up adjacent tiles of the same type
+                    doshortcutstring = False
+                    if doshortcutstring:
+                        shortcutstring_features = []
+                        features["shortcutstring_features"] = shortcutstring_features
+                        roomnodes = []
+                        mapshortcutcoords = []
+                        mapcoords = []
+                        for node in shortcut_features:
+                            if node.roomtile.shortcut != "Normal":
+                                continue
+
+                            basenode = node
+                            basenodecoords = (basenode.roomtile.coordX,basenode.roomtile.coordY)
+                            shortcutnodes = [basenodecoords]
+                            for node in shortcut_features:
+                                # if tile adjacent
+                                if node != basenode and node.roomname == basenode.roomname:
+                                    nodecoords = (node.roomtile.coordX,node.roomtile.coordY)
+                                    if node.roomtile.coordX - basenode.roomtile.coordX == 0:
+                                        print("node and basenode have the same x")
+                                        if node.roomtile.coordY - basenode.roomtile.coordY == 1:
+                                            print("node is adjacent above the basenode")
+                                            shortcutnodes.append(nodecoords)
+                                        elif node.roomtile.coordY - basenode.roomtile.coordY == -1:
+                                            print("node is adjacent below basenode")
+                                            shortcutnodes.append(nodecoords)
+
+                                    elif node.roomtile.coordY - basenode.roomtile.coordY == 0:
+                                        print("node and basenode have the same y")
+                                        if node.roomtile.coordX - basenode.roomtile.coordX == 1:
+                                            print("node is adjacent to the right of basenode")
+                                            shortcutnodes.append(nodecoords)
+                                        elif node.roomtile.coordY - basenode.roomtile.coordX == -1:
+                                            print("node is adjacent to the left of basenode")
+                                            shortcutnodes.append(nodecoords)
+                                        
+                                    worldcoords = room['roomcoords'] + center_of_tile + 20* np.array(nodecoords)
+
+                                    mapshortcutcoords.append(worldcoords)
+
+                                    shortcutnodes.append(nodecoords)
+
+                            if len(shortcutnodes) > 1 and len(mapshortcutcoords) > 1:
+
+                                shortcutstring_features.append(geojson.Feature(
+                                    geometry=geojson.LineString(mapshortcutcoords),
+                                    properties = {
+                                        "roomname":roomname,
+                                        "shortcutnodes":shortcutnodes
+                                        }))
 
                     #print(roomtilecoords)
                     print(roomtiledata)
@@ -1631,7 +1677,7 @@ def do_slugcat(slugcat: str):
                         shortcut_features.append(geojson.Feature(
                             geometry=geojson.MultiLineString(),
                             properties=roomshortcuts))
-                print("shortcuts task done!")
+                print("tile node task done!")
 
             ## RoomTags
             if task_export_roomtag_features:
