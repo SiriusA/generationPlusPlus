@@ -12,7 +12,9 @@ Dual-Iron (1.9 downpour port):
 
 JuliaCat (me, 1.9.07b plus):
 - [Experimental 1.9.07b downpour map page](https://noblecat57.github.io/)
+- [Experimental front-end](https://github.com/NobleCat57/NobleCat57.github.io/tree/PlacedObjects)
 - [Official Release 1.9.07b downpour map page](https://rain-world-downpour-map.github.io/)
+- [Official Release front-end](https://github.com/Rain-World-Downpour-Map/rain-world-downpour-map.github.io/tree/Release)
 - [MSC slugcat 1.9.07b map data](https://github.com/NobleCat57/msc-1.9.07b/tree/v1.9.07b)
 - [Vanilla slugcat 1.9.07b map data](https://github.com/NobleCat57/vanilla-1.9.07b/tree/v1.9.07b)
 - [WIP 1.9.07b generateGeoJSON python script & MapExporter remix mod](https://github.com/NobleCat57/generationPlus/tree/Shortcuts)
