@@ -1,14 +1,14 @@
 Henpemaz (Original, 1.5):
 - [Link to the original 1.5 henpemaz map page](https://henpemaz.github.io/Rain-World-Interactive-Map/index.html)
 - [MapExporter](https://github.com/henpemaz/PartModPartMeme/tree/master/MapExporter)
-- 
+
 Dual-Iron (1.9 downpour port):
 - [Link to the dual-iron 1.9 downpour map page](https://rain-world-map.github.io)
 - [MapExporter & generateGeoJSON.py](https://github.com/rain-world-map/generation/releases/latest)
 - [msc](https://github.com/rain-world-map/msc)
 - [vanilla](https://github.com/rain-world-map/vanilla)
 - [front-end app](https://github.com/rain-world-map/rain-world-map.github.io)
-- 
+
 JuliaCat (me, 1.9.07b plus):
 - [Link to the Experimental 1.9.07b juliacat downpour map page](https://noblecat57.github.io/)
 - [Link to the 1.9.07b juliacat downpour map page](https://rain-world-downpour-map.github.io/)
