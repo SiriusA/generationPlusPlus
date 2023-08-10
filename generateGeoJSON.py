@@ -30,8 +30,8 @@ ofscreensize = np.array([1200,400])
 four_directions = [np.array([-1,0]),np.array([0,-1]),np.array([1,0]),np.array([0,1])]
 center_of_tile = np.array([10,10])
 # File Paths
-screenshots_root = "C:\Program Files (x86)\Steam\steamapps\common\Rain World\export"
-output_folder = "./Adjusted_Dev_Maps_py-output"
+screenshots_root = "./py-input"
+output_folder = "./features_only_py-output"
 streaming_assets = "C:\Program Files (x86)\Steam\steamapps\common\Rain World\RainWorld_Data\StreamingAssets"
 mergedmodsprefix = streaming_assets + "\mergedmods\world"
 mscprefix = streaming_assets + "\mods\moreslugcats\world"
@@ -40,11 +40,11 @@ vanillaprefix = streaming_assets + "\world"
 optimize_geometry = False
 skip_existing_tiles = False
 # None, "yellow, white, red, gourmand, artificer, rivulet, spear, saint, inv", "yellow", "yellow, white, red"
-only_slugcat = "inv"
+only_slugcat = "spear"
 # None, "cc", "cc, su, ss, sb, sh"
-only_region = "su"
+only_region = None
 # Export
-task_export_tiles = True
+task_export_tiles = False
 task_export_features = True
 task_export_room_features = True
 task_export_connection_features = True
@@ -823,7 +823,7 @@ def do_slugcat(slugcat: str):
                     rawplacedobjects = str(rawplacedobjects).partition(": ")[-1].rstrip(", \n")
                     listplacedobjects = rawplacedobjects.split(", ")
 
-                    # since objects have independent positions, each object has its own geometry, properties pair
+                    # since objects have independent positions; each object has its own geometry, properties pair
                     for roomobject in listplacedobjects:
                         if len(roomobject) <= 3:
                             print("object is a stub, skipping")
@@ -841,7 +841,7 @@ def do_slugcat(slugcat: str):
                                 properties=PlacedObject))
                         else:
                             objectentry = roomobject.split("><")
-                            objectname = objectentry[0]
+                            objectname = objectentry[0].strip()
                             objectposx = objectentry[1]
                             objectposy = objectentry[2]
                             objectdata = objectentry[3].split("~")
@@ -903,6 +903,8 @@ def do_slugcat(slugcat: str):
                                             "imageName":objectdata[11],
                                             "vertices":vertices
                                             }
+                                    elif len(objectdata) != 12:
+                                        print("ISSUE: " + objectname + ", Actual data length: " + str(len(objectname)) + ", Proper data length(s): 12 & 20")
 
                                 if objectname == "DeepProcessing":
                                     data = {
@@ -937,23 +939,47 @@ def do_slugcat(slugcat: str):
 
                             for placedobject in collecttokens:
                                 if objectname == placedobject:
-                                    if path.startswith(vanillaprefix):
+                                    if len(objectdata) == 7:
                                         data = {
                                             "handlePosX":objectdata[0],
                                             "handlePosY":objectdata[1],
                                             "panelPosX":objectdata[2],
-                                            "panelPos":objectdata[3],
+                                            "panelPosY":objectdata[3],
                                             "isBlue":objectdata[4],
                                             "tokenString":objectdata[5],
                                             "availableToPlayers":objectdata[6]
                                         }
-                                    else:
-                                        if len(objectdata) == 11:
-                                            data = {
+                                    elif len(objectdata) == 9:
+                                        data = {
                                             "handlePosX":objectdata[0],
                                             "handlePosY":objectdata[1],
                                             "panelPosX":objectdata[2],
-                                            "panelPos":objectdata[3],
+                                            "panelPosY":objectdata[3],
+                                            "isBlue":objectdata[4],
+                                            "tokenString":objectdata[5],
+                                            "availableToPlayers":objectdata[6],
+                                            "isGreen":objectdata[7],
+                                            "isWhite":objectdata[8]
+                                            }
+                                    elif len(objectdata) == 10:
+                                        data = {
+                                            "handlePosX":objectdata[0],
+                                            "handlePosY":objectdata[1],
+                                            "panelPosX":objectdata[2],
+                                            "panelPosY":objectdata[3],
+                                            "isBlue":objectdata[4],
+                                            "tokenString":objectdata[5],
+                                            "availableToPlayers":objectdata[6],
+                                            "isGreen":objectdata[7],
+                                            "isWhite":objectdata[8],
+                                            "isRed":objectdata[9]
+                                            }
+                                    elif len(objectdata) == 11:
+                                        data = {
+                                            "handlePosX":objectdata[0],
+                                            "handlePosY":objectdata[1],
+                                            "panelPosX":objectdata[2],
+                                            "panelPosY":objectdata[3],
                                             "isBlue":objectdata[4],
                                             "tokenString":objectdata[5],
                                             "availableToPlayers":objectdata[6],
@@ -961,7 +987,9 @@ def do_slugcat(slugcat: str):
                                             "isWhite":objectdata[8],
                                             "isRed":objectdata[9],
                                             "isDev":objectdata[10]
-                                            }           
+                                            }    
+                                    else:
+                                        print("ISSUE: data for collectable token " + objectname + " is neither a length of 7, 9, 10, or 11, but instead is " + str(len(objectdata)))
 
                             for placedobject in consumableobjects:
                                 if objectname == placedobject:
@@ -972,6 +1000,8 @@ def do_slugcat(slugcat: str):
                                             "minRegen":objectdata[2],
                                             "maxRegen":objectdata[3]
                                             }
+                                    else:
+                                        print("ISSUE: " + objectname + ", Actual data length: " + str(len(objectname)) + ", Proper data length: 4")
 
                                 if objectname == "VoidSpawnEgg":
                                     if len(objectdata) >= 5:
@@ -982,6 +1012,8 @@ def do_slugcat(slugcat: str):
                                             "maxRegen":objectdata[3],
                                             "exit":objectdata[4]
                                             }
+                                    else:
+                                        print("ISSUE: " + objectname + ", Actual data length: " + str(len(objectname)) + ", Proper data length: 5")
 
                                 for placedobject in datapearl:
                                     if objectname == placedobject:
@@ -994,6 +1026,8 @@ def do_slugcat(slugcat: str):
                                                 "pearlType":objectdata[4],
                                                 "hidden":objectdata[5]
                                                 }
+                                        else:
+                                            print("ISSUE: " + objectname + ", Actual data length: " + str(len(objectname)) + ", Proper data length: 5")
 
                             for placedobject in resizableobjects:
                                 if objectname == placedobject:
@@ -1070,6 +1104,8 @@ def do_slugcat(slugcat: str):
                                     "blinkType":objectdata[8],
                                     "blinkRate":objectdata[9],
                                     }
+                                elif len(objectdata) != 8:
+                                    print("ISSUE: " + objectname + ", Actual data length: " + str(len(objectname)) + ", Proper data length(s): 8, 10, & 11")
                                     
                             elif objectname == "LightFixture":
                                 data = {

@@ -24,7 +24,7 @@ public class MapExporter : BaseUnityPlugin
 {
     // Config
     // "Inv;SU", "Inv;DS", "Inv;CC", "Inv;HI", "Inv;GW", "Inv;SL", "Inv;SH", "Inv;UW", "Inv;SB", "Inv;LF", "Inv;SI", "Inv;VS"
-    static readonly string[] CaptureSpecific = {"Inv;SS"}; // For example, "White;SU" loads Outskirts as Survivor
+    static readonly string[] CaptureSpecific = {"Saint;SU"}; // For example, "White;SU" loads Outskirts as Survivor
     static readonly bool Screenshots = true;
 
     static readonly Dictionary<string, int[]> CameraBlacklist = new()
@@ -35,6 +35,9 @@ public class MapExporter : BaseUnityPlugin
     };
 
     public static new ManualLogSource Logger;
+
+
+    public static bool eu = true;
 
     public static bool NotHiddenRoom(AbstractRoom room) => !HiddenRoom(room);
     public static bool HiddenRoom(AbstractRoom room)
@@ -245,6 +248,8 @@ public class MapExporter : BaseUnityPlugin
         // Tryna get everything to present nicely on screenshot, and also maybe fix that bubble grass index out of array error for inv/ss
         foreach (var item in self.roomSettings.placedObjects) {
             if (item.type == PlacedObject.Type.InsectGroup) item.active = false;
+            // for inv ss
+            //if (item.type == PlacedObject.Type.BubbleGrass) item.active = false;
             if (item.type == PlacedObject.Type.FlyLure
                 || item.type == PlacedObject.Type.JellyFish
                 || item.type == PlacedObject.Type.BubbleGrass
@@ -319,9 +324,9 @@ public class MapExporter : BaseUnityPlugin
     {
         // Use safari mode, it's very sanitary
         manager.rainWorld.safariMode = true;
-        manager.rainWorld.safariRainDisable = false;
+        manager.rainWorld.safariRainDisable = true;
         manager.rainWorld.safariSlugcat = SlugcatStats.Name.White;
-        manager.rainWorld.safariRegion = "SS";
+        manager.rainWorld.safariRegion = "SU";
 
         orig(self, manager);
 
