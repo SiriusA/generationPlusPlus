@@ -1,0 +1,173 @@
+Found slugcat regions: white
+Found region: si
+starting placed object task!
+No Placed Objects in SI_A28, Skipping!
+object is a stub, skipping: ""
+No Placed Objects in SI_B03, Skipping!
+No Placed Objects in SI_S06, Skipping!
+No Placed Objects in SI_C01x, Skipping!
+found object: Filter in SI_B02
+['Artificer', 'Spear']
+object NeedleEgg
+object DandelionPatch
+object DandelionPatch
+object InsectGroup
+object WhiteToken
+room: SI_B02 | object: DataPearl | object within radius of filter
+distance from filter: 30.19282146206288 | radius of filter: 50.08991914547278
+Not active for current slugcat white
+found object: Filter in SI_C07
+['White', 'Yellow', 'Rivulet', 'Saint', 'Gourmand']
+object CustomDecal
+object KarmaFlower
+object GoldToken
+object DeadTokenStalk
+object DeadTokenStalk
+room: SI_C07 | object: NeedleEgg | object within radius of filter
+distance from filter: 37.983598265040676 | radius of filter: 100.0
+Not active for current slugcat white
+object WhiteToken
+object DataPearl
+object DandelionPeach
+object DandelionPeach
+found object: Filter in SI_C07
+['Red', 'Artificer', 'Spear', 'Gourmand']
+object CustomDecal
+object KarmaFlower
+object GoldToken
+object DeadTokenStalk
+object DeadTokenStalk
+object NeedleEgg
+object WhiteToken
+room: SI_C07 | object: DataPearl | object within radius of filter
+distance from filter: 20.66453348638686 | radius of filter: 34.52535300326414
+Not active for current slugcat white
+object DandelionPeach
+object DandelionPeach
+found object: Filter in SI_D01
+['Red', 'Rivulet', 'Artificer', 'Saint', 'Spear']
+object LightSource
+object LightSource
+object InsectGroup
+object CustomDecal
+object CustomDecal
+object CustomDecal
+object CustomDecal
+object CustomDecal
+object CustomDecal
+object CustomDecal
+room: SI_D01 | object: DandelionPeach | object within radius of filter
+distance from filter: 50.2849734059788 | radius of filter: 100.0
+Not active for current slugcat white
+room: SI_D01 | object: DandelionPeach | object within radius of filter
+distance from filter: 38.489287667609574 | radius of filter: 100.0
+Not active for current slugcat white
+object DandelionPeach
+object DandelionPeach
+found object: Filter in SI_D03
+['White', 'Yellow', 'Rivulet', 'Saint', 'Gourmand']
+object CustomDecal
+object CustomDecal
+object CustomDecal
+room: SI_D03 | object: NeedleEgg | object within radius of filter
+distance from filter: 31.16377157870974 | radius of filter: 100.0
+Not active for current slugcat white
+object Rainbow
+object DandelionPeach
+object DandelionPeach
+found object: Filter in SI_D05
+['Artificer', 'Spear']
+object DandelionPatch
+object DandelionPatch
+object DandelionPatch
+object DandelionPatch
+object DandelionPatch
+object DandelionPatch
+object SeedCob
+object DeadSeedCob
+object CustomDecal
+object CustomDecal
+object CustomDecal
+object BlueToken
+object DeadTokenStalk
+object Rainbow
+object WhiteToken
+room: SI_D05 | object: DataPearl | object within radius of filter
+distance from filter: 14.85357253323248 | radius of filter: 32.2490309931942
+Not active for current slugcat white
+object DevToken
+found object: Filter in SI_B12
+['White', 'Red', 'Artificer', 'Spear', 'Gourmand']
+object DataPearl
+object UniqueDataPearl
+object FirecrackerPlant
+object FirecrackerPlant
+object FirecrackerPlant
+object InsectGroup
+object CustomDecal
+object WhiteToken
+room: SI_B12 | object: DataPearl | object within radius of filter
+distance from filter: 6.675885305335935 | radius of filter: 18.110770276274835
+Not active for current slugcat white
+found object: Filter in SI_D07
+['White', 'Yellow', 'Rivulet', 'Saint']
+object InsectGroup
+object InsectGroup
+object InsectGroup
+object InsectGroup
+room: SI_D07 | object: NeedleEgg | object within radius of filter
+distance from filter: 68.26985901552757 | radius of filter: 100.0
+Not active for current slugcat white
+object NeedleEgg
+found object: Filter in SI_D07
+['White', 'Yellow', 'Rivulet', 'Saint', 'Gourmand']
+object InsectGroup
+object InsectGroup
+object InsectGroup
+object InsectGroup
+room: SI_D07 | object: NeedleEgg | object within radius of filter
+distance from filter: 35.01177704715951 | radius of filter: 100.0
+Not active for current slugcat white
+found object: Filter in SI_B13
+['Red', 'Artificer', 'Spear']
+object NoSpearStickZone
+object InsectGroup
+object ReliableSpear
+room: SI_B13 | object: SeedCob | object within radius of filter
+distance from filter: 15.156485522046372 | radius of filter: 22.02271554554524
+Not active for current slugcat white
+object ReliableSpear
+object DeadSeedCob
+object Rainbow
+found object: Filter in SI_B13
+['White', 'Yellow', 'Rivulet', 'Saint', 'Gourmand']
+object NoSpearStickZone
+object InsectGroup
+object ReliableSpear
+object DeadSeedCob
+object ReliableSpear
+room: SI_B13 | object: DeadSeedCob | object within radius of filter
+distance from filter: 10.129978047853822 | radius of filter: 15.0
+Not active for current slugcat white
+object Rainbow
+found object: Filter in SI_F01
+['Red', 'Artificer', 'Spear', 'Gourmand']
+object DandelionPatch
+room: SI_F01 | object: DandelionPatch | object within radius of filter
+distance from filter: 83.44424439642309 | radius of filter: 173.21951391226105
+Not active for current slugcat white
+room: SI_F01 | object: DandelionPeach | object within radius of filter
+distance from filter: 61.65290921156917 | radius of filter: 173.21951391226105
+Not active for current slugcat white
+object DandelionPatch
+object DandelionPatch
+object DandelionPatch
+object DandelionPeach
+object DandelionPeach
+placed object task done!
+done with features task
+Region done! white/si
+Slugcat done! white
+Done!
+The thread 'MainThread' (0x1) has exited with code 0 (0x0).
+The program 'python.exe' has exited with code 0 (0x0).

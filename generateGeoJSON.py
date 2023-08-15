@@ -7,6 +7,7 @@ import colorsys
 import numpy as np
 from PIL import Image
 import distutils.core
+import math
 
 # making python more pythonic smh
 def readfile(filename):
@@ -31,7 +32,7 @@ four_directions = [np.array([-1,0]),np.array([0,-1]),np.array([1,0]),np.array([0
 center_of_tile = np.array([10,10])
 # File Paths
 screenshots_root = "./py-input"
-output_folder = "./features_only_py-output"
+output_folder = "./filter_test_py-output"
 streaming_assets = "C:\Program Files (x86)\Steam\steamapps\common\Rain World\RainWorld_Data\StreamingAssets"
 mergedmodsprefix = streaming_assets + "\mergedmods\world"
 mscprefix = streaming_assets + "\mods\moreslugcats\world"
@@ -40,20 +41,20 @@ vanillaprefix = streaming_assets + "\world"
 optimize_geometry = False
 skip_existing_tiles = False
 # None, "yellow, white, red, gourmand, artificer, rivulet, spear, saint, inv", "yellow", "yellow, white, red"
-only_slugcat = "spear"
+only_slugcat = "white"
 # None, "cc", "cc, su, ss, sb, sh"
-only_region = None
+only_region = "si"
 # Export
 task_export_tiles = False
 task_export_features = True
-task_export_room_features = True
-task_export_connection_features = True
-task_export_geo_features = True
-task_export_creatures_features = True
+task_export_room_features = False
+task_export_connection_features = False
+task_export_geo_features = False
+task_export_creatures_features = False
 task_export_placedobject_features = True
-task_export_tilenode_features = True
-task_export_roomtag_features = True
-task_export_batmigrationblockages_features = True
+task_export_tilenode_features = False
+task_export_roomtag_features = False
+task_export_batmigrationblockages_features = False
 
 # External data
 config = {
@@ -87,7 +88,7 @@ config = {
 
 config = readfile("generationPlus.config")
 
-print(config)
+#print(config)
 
 def do_slugcat(slugcat: str):
     if only_slugcat is not None and only_slugcat != slugcat:
@@ -683,6 +684,7 @@ def do_slugcat(slugcat: str):
                 isvanilla = False
                 worldsources = ([mscprefix,"MSC",ismsc,mscpath],[mergedmodsprefix,"MergedMods",ismergedmods,mergedmodspath],[vanillaprefix,"Vanilla",isvanilla,vanillapath])
                 inroomobjects = [] # the list of collective objects within a singular room
+                filterlist = []
                 steampipes = ("SteamPipe","WallSteamer")
                 quadobject = ("SpotLight","SuperJumpInstruction","DeepProcessing","CustomDecal")
                 gridrectobject = ("ZapCoil","SuperStructureFuses")
@@ -690,7 +692,7 @@ def do_slugcat(slugcat: str):
                 collecttokens = ("GoldToken","BlueToken","GreenToken","WhiteToken","RedToken","DevToken")
                 consumableobjects = ("SeedCob","DangleFruit","FlareBomb","PuffBall","WaterNut","Jellyfish","KarmaFlower","Mushroom",
                                      "FirecrackerPlant","VultureGrub","DeadVultureGrub","Lantern","SlimeMold","FlyLure","SporePlant",
-                                     "BubbleGrass","Hazer","DeadHazer","Germinator","GooieDuck","LillyPuck","GlowWeed",
+                                     "NeedleEgg","BubbleGrass","Hazer","DeadHazer","Germinator","GooieDuck","LillyPuck","GlowWeed",
                                      "MoonCloak","DandelionPeach","HRGuard","VoidSpawnEgg","DataPearl","UniqueDataPearl")
                 datapearl = ("DataPearl","UniqueDataPearl")
                 resizableobjects = ("CoralCircuit","CoralNeuron","CoralStem","CoralStemWithNeurons","Corruption","CorruptionTube",
@@ -704,10 +706,8 @@ def do_slugcat(slugcat: str):
                 for roomname, room in rooms.items():
                     roomName = room['roomName'].lower()
                     if roomName.startswith("offscreen"):
-                        print(roomname + " is an offscreen room: Skipping!")
+                        #print(roomname + " is an offscreen room: Skipping!")
                         continue
-
-                    # this whole thing needs optimized, but that is a later task, after the fact for when it works - 7/11/2023: it works now! :)
 
                     def fileresolver(roomName):
                         # check for gate rooms, not that they have shortcuts... :(
@@ -733,10 +733,10 @@ def do_slugcat(slugcat: str):
                                     skipVanilla = True
 
                             if skipMergedMods and roomtype == "room":
-                                print("skipping searching in MergedMods since the room is msc exclusive")
+                                #print("skipping searching in MergedMods since the room is msc exclusive")
                                 continue
                             if skipVanilla and roomtype == "room":
-                                print("skipping searching in Vanilla since the room is msc exclusive")
+                                #print("skipping searching in Vanilla since the room is msc exclusive")
                                 continue
                             foundspecific = False
                             specificsetting = ""
@@ -748,20 +748,20 @@ def do_slugcat(slugcat: str):
 
                                 settingspath = worldsource[0] + subfolder + roomname + "_settings" + specificsetting + ".txt"
                                 if (os.path.exists(settingspath)):
-                                    print("Found " + roomname + " settings" + specifictext + " in " + worldsource[1])
+                                    #print("Found " + roomname + " settings" + specifictext + " in " + worldsource[1])
                                     worldsource[2] = True
                                     worldsource[3] = settingspath
                                     foundspecific = True
                                 else:
                                     worldsource[2] = False
                                     worldsource[3] = ""
-                                    print("No specific settings in " + worldsource[1])
+                                    #print("No specific settings in " + worldsource[1])
                             # Onto normal settings
                             specificsetting = ""
                             specifictext = ""
                             settingspath = worldsource[0] + subfolder + roomname + "_settings" + specificsetting + ".txt"
                             if (os.path.exists(settingspath)):
-                                print("Found " + roomname + " settings" + specifictext + " in " + worldsource[1])
+                                #print("Found " + roomname + " settings" + specifictext + " in " + worldsource[1])
                                 worldsource[2] = True
                                 worldsource[3] = settingspath
                             else:
@@ -769,7 +769,7 @@ def do_slugcat(slugcat: str):
                                 if not foundspecific:
                                     worldsource[2] = False
                                     worldsource[3] = ""
-                                print("No generic settings in " + worldsource[1])
+                                #print("No generic settings in " + worldsource[1])
                             
                         # MSC FIRST
                         # NOT mergedmods first; will cause issues with duplicate gates in msc and vanilla, since their actual per region usage isn't explicit
@@ -784,17 +784,17 @@ def do_slugcat(slugcat: str):
                                     print(roomname + " is not in any world file")
                                 else:
                                     resolvedpath = pathdata[2][3]
-                                    print("this is vanilla")
+                                    #print("this is vanilla")
                             else:
                                 resolvedpath = pathdata[1][3]
-                                print("this is mergedmods")
+                                #print("this is mergedmods")
                         else:
                             resolvedpath = pathdata[0][3]
-                            print("this is msc")
+                            #print("this is msc")
 
                         # make sure that the resolved path and world source are the same
                         if resolvedpath:
-                            print("Using " + resolvedpath)
+                            #print("Using " + resolvedpath)
                             return resolvedpath
 
                     path = fileresolver(roomName)
@@ -812,7 +812,9 @@ def do_slugcat(slugcat: str):
                             elif (not readline.startswith("PlacedObjects: ")):
                                 insideofplacedobjects = False;
                             elif (insideofplacedobjects):
+                                hasplacedobjects = True
                                 rawplacedobjects = readline
+                                
                         if not hasplacedobjects:
                             print("No Placed Objects in " + roomname + ", Skipping!")
                             f.close()
@@ -822,11 +824,13 @@ def do_slugcat(slugcat: str):
 
                     rawplacedobjects = str(rawplacedobjects).partition(": ")[-1].rstrip(", \n")
                     listplacedobjects = rawplacedobjects.split(", ")
+                    
+                    filteritems = []
 
                     # since objects have independent positions; each object has its own geometry, properties pair
                     for roomobject in listplacedobjects:
                         if len(roomobject) <= 3:
-                            print("object is a stub, skipping")
+                            print("object is a stub, skipping: \"" + roomobject + "\"")
                             continue
                         elif "><" not in roomobject:
                             print("Object " + roomobject + ' does not contain "><" value delimiters, ')
@@ -844,51 +848,47 @@ def do_slugcat(slugcat: str):
                             objectname = objectentry[0].strip()
                             objectposx = objectentry[1]
                             objectposy = objectentry[2]
-                            objectdata = objectentry[3].split("~")
-
-                            data = objectdata
+                            objectdata = objectentry[3]
+                            if len(objectdata) == 0:
+                                #print("there is no added data for " + objectname + " in " + roomname + ", supplementing it with the raw coords")
+                                data = {
+                                    "rawCoordX":objectposx,
+                                    "rawCoordY":objectposy
+                                    }
+                            else:
+                                objectdata = objectentry[3].split("~")
+                                data = objectdata
+                                
                             # Hefty-ass load of unique instances of object data
-                            for placedobject in steampipes:
-                                if objectname == placedobject:
-                                    data = {
-                                        "handlePosX":objectdata[0],
-                                        "handlePosY":objectdata[1]
-                                        }
+                            processdata = True
+                            if processdata:
 
-                            for placedobject in quadobject:
-                                if objectname == placedobject:
-                                    data = {
-                                        "handles[0]X":objectdata[0],
-                                        "handles[0]Y":objectdata[1],
-                                        "handles[1]X":objectdata[2],
-                                        "handles[1]Y":objectdata[3],
-                                        "handles[2]X":objectdata[4],
-                                        "handles[2]Y":objectdata[5]
-                                        }
-
-                                if objectname == "CustomDecal":
-                                    data = {
-                                        "handles[0]X":objectdata[0],
-                                        "handles[0]Y":objectdata[1],
-                                        "handles[1]X":objectdata[2],
-                                        "handles[1]Y":objectdata[3],
-                                        "handles[2]X":objectdata[4],
-                                        "handles[2]Y":objectdata[5],
-                                        "panelPosX":objectdata[6],
-                                        "panelPosY":objectdata[7],
-                                        "fromDepth":objectdata[8],
-                                        "toDepth":objectdata[9],
-                                        "noise":objectdata[10],
-                                        "imageName":objectdata[11]
-                                        }
-                                    if len(objectdata) >= 20:
-                                        vertices = []
-                                        l = 12
-                                        while l < len(objectdata):
-                                            vertices.append(objectdata[l])
-                                            l += 1
-
+                                for placedobject in steampipes:
+                                    if objectname == placedobject:
                                         data = {
+                                            "rawCoordX":objectposx,
+                                            "rawCoordY":objectposy,
+                                            "handlePosX":objectdata[0],
+                                            "handlePosY":objectdata[1]
+                                            }
+
+                                for placedobject in quadobject:
+                                    if objectname == placedobject:
+                                        data = {
+                                            "rawCoordX":objectposx,
+                                            "rawCoordY":objectposy,
+                                            "handles[0]X":objectdata[0],
+                                            "handles[0]Y":objectdata[1],
+                                            "handles[1]X":objectdata[2],
+                                            "handles[1]Y":objectdata[3],
+                                            "handles[2]X":objectdata[4],
+                                            "handles[2]Y":objectdata[5]
+                                            }
+
+                                    if objectname == "CustomDecal":
+                                        data = {
+                                            "rawCoordX":objectposx,
+                                            "rawCoordY":objectposy,
                                             "handles[0]X":objectdata[0],
                                             "handles[0]Y":objectdata[1],
                                             "handles[1]X":objectdata[2],
@@ -900,353 +900,442 @@ def do_slugcat(slugcat: str):
                                             "fromDepth":objectdata[8],
                                             "toDepth":objectdata[9],
                                             "noise":objectdata[10],
-                                            "imageName":objectdata[11],
-                                            "vertices":vertices
+                                            "imageName":objectdata[11]
                                             }
-                                    elif len(objectdata) != 12:
-                                        print("ISSUE: " + objectname + ", Actual data length: " + str(len(objectname)) + ", Proper data length(s): 12 & 20")
+                                        if len(objectdata) >= 20:
+                                            vertices = []
+                                            l = 12
+                                            while l < len(objectdata):
+                                                vertices.append(objectdata[l])
+                                                l += 1
 
-                                if objectname == "DeepProcessing":
-                                    data = {
-                                        "handles[0]X":objectdata[0],
-                                        "handles[0]Y":objectdata[1],
-                                        "handles[1]X":objectdata[2],
-                                        "handles[1]Y":objectdata[3],
-                                        "handles[2]X":objectdata[4],
-                                        "handles[2]Y":objectdata[5],
-                                        "panelPosX":objectdata[6],
-                                        "panelPosY":objectdata[7],
-                                        "fromDepth":objectdata[8],
-                                        "toDepth":objectdata[9],
-                                        "intensity":objectdata[10]
-                                        }
+                                            data = {
+                                                "rawCoordX":objectposx,
+                                                "rawCoordY":objectposy,
+                                                "handles[0]X":objectdata[0],
+                                                "handles[0]Y":objectdata[1],
+                                                "handles[1]X":objectdata[2],
+                                                "handles[1]Y":objectdata[3],
+                                                "handles[2]X":objectdata[4],
+                                                "handles[2]Y":objectdata[5],
+                                                "panelPosX":objectdata[6],
+                                                "panelPosY":objectdata[7],
+                                                "fromDepth":objectdata[8],
+                                                "toDepth":objectdata[9],
+                                                "noise":objectdata[10],
+                                                "imageName":objectdata[11],
+                                                "vertices":vertices
+                                                }
+                                        elif len(objectdata) != 12:
+                                            print("ISSUE: " + objectname + ", Actual data length: " + str(len(objectname)) + ", Proper data length(s): 12 & 20")
 
-                            for placedobject in gridrectobject:
-                                if objectname == placedobject:
-                                    data = {
-                                        "handlePosX":objectdata[0],
-                                        "handlePosY":objectdata[1]
-                                        }
-
-                            for placedobject in multiplayeritems:
-                                if objectname == placedobject:
-                                    data = {
-                                        "type":objectdata[0],
-                                        "panelPosX":objectdata[1],
-                                        "panelPosY":objectdata[2],
-                                        "chance":objectdata[3]
-                                        }
-
-                            for placedobject in collecttokens:
-                                if objectname == placedobject:
-                                    if len(objectdata) == 7:
+                                    if objectname == "DeepProcessing":
                                         data = {
-                                            "handlePosX":objectdata[0],
-                                            "handlePosY":objectdata[1],
-                                            "panelPosX":objectdata[2],
-                                            "panelPosY":objectdata[3],
-                                            "isBlue":objectdata[4],
-                                            "tokenString":objectdata[5],
-                                            "availableToPlayers":objectdata[6]
-                                        }
-                                    elif len(objectdata) == 9:
-                                        data = {
-                                            "handlePosX":objectdata[0],
-                                            "handlePosY":objectdata[1],
-                                            "panelPosX":objectdata[2],
-                                            "panelPosY":objectdata[3],
-                                            "isBlue":objectdata[4],
-                                            "tokenString":objectdata[5],
-                                            "availableToPlayers":objectdata[6],
-                                            "isGreen":objectdata[7],
-                                            "isWhite":objectdata[8]
+                                            "rawCoordX":objectposx,
+                                            "rawCoordY":objectposy,
+                                            "handles[0]X":objectdata[0],
+                                            "handles[0]Y":objectdata[1],
+                                            "handles[1]X":objectdata[2],
+                                            "handles[1]Y":objectdata[3],
+                                            "handles[2]X":objectdata[4],
+                                            "handles[2]Y":objectdata[5],
+                                            "panelPosX":objectdata[6],
+                                            "panelPosY":objectdata[7],
+                                            "fromDepth":objectdata[8],
+                                            "toDepth":objectdata[9],
+                                            "intensity":objectdata[10]
                                             }
-                                    elif len(objectdata) == 10:
-                                        data = {
-                                            "handlePosX":objectdata[0],
-                                            "handlePosY":objectdata[1],
-                                            "panelPosX":objectdata[2],
-                                            "panelPosY":objectdata[3],
-                                            "isBlue":objectdata[4],
-                                            "tokenString":objectdata[5],
-                                            "availableToPlayers":objectdata[6],
-                                            "isGreen":objectdata[7],
-                                            "isWhite":objectdata[8],
-                                            "isRed":objectdata[9]
-                                            }
-                                    elif len(objectdata) == 11:
-                                        data = {
-                                            "handlePosX":objectdata[0],
-                                            "handlePosY":objectdata[1],
-                                            "panelPosX":objectdata[2],
-                                            "panelPosY":objectdata[3],
-                                            "isBlue":objectdata[4],
-                                            "tokenString":objectdata[5],
-                                            "availableToPlayers":objectdata[6],
-                                            "isGreen":objectdata[7],
-                                            "isWhite":objectdata[8],
-                                            "isRed":objectdata[9],
-                                            "isDev":objectdata[10]
-                                            }    
-                                    else:
-                                        print("ISSUE: data for collectable token " + objectname + " is neither a length of 7, 9, 10, or 11, but instead is " + str(len(objectdata)))
 
-                            for placedobject in consumableobjects:
-                                if objectname == placedobject:
-                                    if len(objectdata) > 3:
-                                        data = {
-                                            "panelPosX":objectdata[0],
-                                            "panelPosY":objectdata[1],
-                                            "minRegen":objectdata[2],
-                                            "maxRegen":objectdata[3]
-                                            }
-                                    else:
-                                        print("ISSUE: " + objectname + ", Actual data length: " + str(len(objectname)) + ", Proper data length: 4")
-
-                                if objectname == "VoidSpawnEgg":
-                                    if len(objectdata) >= 5:
-                                        data = {
-                                            "panelPosX":objectdata[0],
-                                            "panelPosY":objectdata[1],
-                                            "minRegen":objectdata[2],
-                                            "maxRegen":objectdata[3],
-                                            "exit":objectdata[4]
-                                            }
-                                    else:
-                                        print("ISSUE: " + objectname + ", Actual data length: " + str(len(objectname)) + ", Proper data length: 5")
-
-                                for placedobject in datapearl:
+                                for placedobject in gridrectobject:
                                     if objectname == placedobject:
+                                        data = {
+                                            "rawCoordX":objectposx,
+                                            "rawCoordY":objectposy,
+                                            "handlePosX":objectdata[0],
+                                            "handlePosY":objectdata[1]
+                                            }
+
+                                for placedobject in multiplayeritems:
+                                    if objectname == placedobject:
+                                        data = {
+                                            "rawCoordX":objectposx,
+                                            "rawCoordY":objectposy,
+                                            "type":objectdata[0],
+                                            "panelPosX":objectdata[1],
+                                            "panelPosY":objectdata[2],
+                                            "chance":objectdata[3]
+                                            }
+
+                                for placedobject in collecttokens:
+                                    if objectname == placedobject:
+                                        availableToPlayers = objectdata[6].split("|")
+                                        if len(objectdata) == 7:
+                                            data = {
+                                                "rawCoordX":objectposx,
+                                                "rawCoordY":objectposy,
+                                                "handlePosX":objectdata[0],
+                                                "handlePosY":objectdata[1],
+                                                "panelPosX":objectdata[2],
+                                                "panelPosY":objectdata[3],
+                                                "isBlue":objectdata[4],
+                                                "tokenString":objectdata[5],
+                                                "availableToPlayers":availableToPlayers
+                                            }
+                                        elif len(objectdata) == 9:
+                                            data = {
+                                                "rawCoordX":objectposx,
+                                                "rawCoordY":objectposy,
+                                                "handlePosX":objectdata[0],
+                                                "handlePosY":objectdata[1],
+                                                "panelPosX":objectdata[2],
+                                                "panelPosY":objectdata[3],
+                                                "isBlue":objectdata[4],
+                                                "tokenString":objectdata[5],
+                                                "availableToPlayers":availableToPlayers,
+                                                "isGreen":objectdata[7],
+                                                "isWhite":objectdata[8]
+                                                }
+                                        elif len(objectdata) == 10:
+                                            data = {
+                                                "rawCoordX":objectposx,
+                                                "rawCoordY":objectposy,
+                                                "handlePosX":objectdata[0],
+                                                "handlePosY":objectdata[1],
+                                                "panelPosX":objectdata[2],
+                                                "panelPosY":objectdata[3],
+                                                "isBlue":objectdata[4],
+                                                "tokenString":objectdata[5],
+                                                "availableToPlayers":availableToPlayers,
+                                                "isGreen":objectdata[7],
+                                                "isWhite":objectdata[8],
+                                                "isRed":objectdata[9]
+                                                }
+                                        elif len(objectdata) == 11:
+                                            data = {
+                                                "rawCoordX":objectposx,
+                                                "rawCoordY":objectposy,
+                                                "handlePosX":objectdata[0],
+                                                "handlePosY":objectdata[1],
+                                                "panelPosX":objectdata[2],
+                                                "panelPosY":objectdata[3],
+                                                "isBlue":objectdata[4],
+                                                "tokenString":objectdata[5],
+                                                "availableToPlayers":availableToPlayers,
+                                                "isGreen":objectdata[7],
+                                                "isWhite":objectdata[8],
+                                                "isRed":objectdata[9],
+                                                "isDev":objectdata[10]
+                                                }    
+                                        else:
+                                            print("ISSUE: data for collectable token " + objectname + " is neither a length of 7, 9, 10, or 11, but instead is " + str(len(objectdata)))
+
+                                for placedobject in consumableobjects:
+                                    if objectname == placedobject:
+                                        if len(objectdata) > 3:
+                                            data = {
+                                                "rawCoordX":objectposx,
+                                                "rawCoordY":objectposy,
+                                                "panelPosX":objectdata[0],
+                                                "panelPosY":objectdata[1],
+                                                "minRegen":objectdata[2],
+                                                "maxRegen":objectdata[3]
+                                                }
+                                        else:
+                                            print("ISSUE: " + objectname + ", Actual data length: " + str(len(objectname)) + ", Proper data length: 4")
+
+                                    if objectname == "VoidSpawnEgg":
                                         if len(objectdata) >= 5:
                                             data = {
+                                                "rawCoordX":objectposx,
+                                                "rawCoordY":objectposy,
                                                 "panelPosX":objectdata[0],
                                                 "panelPosY":objectdata[1],
                                                 "minRegen":objectdata[2],
                                                 "maxRegen":objectdata[3],
-                                                "pearlType":objectdata[4],
-                                                "hidden":objectdata[5]
+                                                "exit":objectdata[4]
                                                 }
                                         else:
                                             print("ISSUE: " + objectname + ", Actual data length: " + str(len(objectname)) + ", Proper data length: 5")
 
-                            for placedobject in resizableobjects:
-                                if objectname == placedobject:
-                                    data = {
-                                    "handlePosX":objectdata[0],
-                                    "handlePosY":objectdata[1]
-                                    }
+                                    for placedobject in datapearl:
+                                        if objectname == placedobject:
+                                            if len(objectdata) >= 5:
+                                                data = {
+                                                    "rawCoordX":objectposx,
+                                                    "rawCoordY":objectposy,
+                                                    "panelPosX":objectdata[0],
+                                                    "panelPosY":objectdata[1],
+                                                    "minRegen":objectdata[2],
+                                                    "maxRegen":objectdata[3],
+                                                    "pearlType":objectdata[4],
+                                                    "hidden":objectdata[5]
+                                                    }
+                                            else:
+                                                print("ISSUE: " + objectname + ", Actual data length: " + str(len(objectname)) + ", Proper data length: 5")
 
-                                if objectname == "Filter":
-                                    data = {
-                                        "handlePosX":objectdata[0],
-                                        "handlePosY":objectdata[1],
-                                        "panelPosX":objectdata[2],
-                                        "panelPosY":objectdata[3],
-                                        "availableToPlayers":objectdata[4]
+                                for placedobject in resizableobjects:
+                                    if objectname == placedobject:
+                                        data = {
+                                            "rawCoordX":objectposx,
+                                            "rawCoordY":objectposy,
+                                            "handlePosX":objectdata[0],
+                                            "handlePosY":objectdata[1]
                                         }
 
-                                elif objectname == "InsectGroup":
-                                    data = {
-                                        "handlePosX":objectdata[0],
-                                        "handlePosY":objectdata[1],
-                                        "panelPosX":objectdata[2],
-                                        "panelPosY":objectdata[3],
-                                        "insectType":objectdata[4],
-                                        "density":objectdata[5]
-                                        }
+                                    if objectname == "Filter":
+                                        availableToPlayers = objectdata[4].split("|")
+                                        data = {
+                                            "rawCoordX":objectposx,
+                                            "rawCoordY":objectposy,
+                                            "handlePosX":objectdata[0],
+                                            "handlePosY":objectdata[1],
+                                            "panelPosX":objectdata[2],
+                                            "panelPosY":objectdata[3],
+                                            "availableToPlayers":availableToPlayers
+                                            }
 
-                                elif objectname == "ScavengerOutpost":
-                                    data = {
-                                        "handlePosX":objectdata[0],
-                                        "handlePosY":objectdata[1],
-                                        "panelPosX":objectdata[2],
-                                        "panelPosY":objectdata[3],
-                                        "direction":objectdata[4],
-                                        "skullSeed":objectdata[5],
-                                        "pearlsSeed":objectdata[6]
-                                        }
+                                    elif objectname == "InsectGroup":
+                                        data = {
+                                            "rawCoordX":objectposx,
+                                            "rawCoordY":objectposy,
+                                            "handlePosX":objectdata[0],
+                                            "handlePosY":objectdata[1],
+                                            "panelPosX":objectdata[2],
+                                            "panelPosY":objectdata[3],
+                                            "insectType":objectdata[4],
+                                            "density":objectdata[5]
+                                            }
 
-                            if objectname == "LightSource":
-                                data = {
-                                    "strength":objectdata[0],
-                                    "colorType":objectdata[1],
-                                    "handlePosX":objectdata[2],
-                                    "handlePosY":objectdata[3],
-                                    "panelPosX":objectdata[4],
-                                    "panelPosY":objectdata[5],
-                                    "fadeWithSun":bool(objectdata[6]),
-                                    "flat":bool(objectdata[7]),
-                                    }
-                                if len(objectdata) > 10:
+                                    elif objectname == "ScavengerOutpost":
+                                        data = {
+                                            "rawCoordX":objectposx,
+                                            "rawCoordY":objectposy,
+                                            "handlePosX":objectdata[0],
+                                            "handlePosY":objectdata[1],
+                                            "panelPosX":objectdata[2],
+                                            "panelPosY":objectdata[3],
+                                            "direction":objectdata[4],
+                                            "skullSeed":objectdata[5],
+                                            "pearlsSeed":objectdata[6]
+                                            }
+
+                                if objectname == "LightSource":
                                     data = {
-                                    "strength":objectdata[0],
-                                    "colorType":objectdata[1],
-                                    "handlePosX":objectdata[2],
-                                    "handlePosY":objectdata[3],
-                                    "panelPosX":objectdata[4],
-                                    "panelPosY":objectdata[5],
-                                    "fadeWithSun":bool(objectdata[6]),
-                                    "flat":bool(objectdata[7]),
-                                    "blinkType":objectdata[8],
-                                    "blinkRate":objectdata[9],
-                                    "nightLight":bool(objectdata[10])
-                                    }
-                                elif len(objectdata) > 8:
-                                    data = {
-                                    "strength":objectdata[0],
-                                    "colorType":objectdata[1],
-                                    "handlePosX":objectdata[2],
-                                    "handlePosY":objectdata[3],
-                                    "panelPosX":objectdata[4],
-                                    "panelPosY":objectdata[5],
-                                    "fadeWithSun":bool(objectdata[6]),
-                                    "flat":bool(objectdata[7]),
-                                    "blinkType":objectdata[8],
-                                    "blinkRate":objectdata[9],
-                                    }
-                                elif len(objectdata) != 8:
-                                    print("ISSUE: " + objectname + ", Actual data length: " + str(len(objectname)) + ", Proper data length(s): 8, 10, & 11")
+                                        "rawCoordX":objectposx,
+                                        "rawCoordY":objectposy,
+                                        "strength":objectdata[0],
+                                        "colorType":objectdata[1],
+                                        "handlePosX":objectdata[2],
+                                        "handlePosY":objectdata[3],
+                                        "panelPosX":objectdata[4],
+                                        "panelPosY":objectdata[5],
+                                        "fadeWithSun":bool(objectdata[6]),
+                                        "flat":bool(objectdata[7]),
+                                        }
+                                    if len(objectdata) > 10:
+                                        data = {
+                                            "rawCoordX":objectposx,
+                                            "rawCoordY":objectposy,
+                                            "strength":objectdata[0],
+                                            "colorType":objectdata[1],
+                                            "handlePosX":objectdata[2],
+                                            "handlePosY":objectdata[3],
+                                            "panelPosX":objectdata[4],
+                                            "panelPosY":objectdata[5],
+                                            "fadeWithSun":bool(objectdata[6]),
+                                            "flat":bool(objectdata[7]),
+                                            "blinkType":objectdata[8],
+                                            "blinkRate":objectdata[9],
+                                            "nightLight":bool(objectdata[10])
+                                        }
+                                    elif len(objectdata) > 8:
+                                        data = {
+                                            "rawCoordX":objectposx,
+                                            "rawCoordY":objectposy,
+                                            "strength":objectdata[0],
+                                            "colorType":objectdata[1],
+                                            "handlePosX":objectdata[2],
+                                            "handlePosY":objectdata[3],
+                                            "panelPosX":objectdata[4],
+                                            "panelPosY":objectdata[5],
+                                            "fadeWithSun":bool(objectdata[6]),
+                                            "flat":bool(objectdata[7]),
+                                            "blinkType":objectdata[8],
+                                            "blinkRate":objectdata[9],
+                                        }
+                                    elif len(objectdata) != 8:
+                                        print("ISSUE: " + objectname + ", Actual data length: " + str(len(objectname)) + ", Proper data length(s): 8, 10, & 11")
                                     
-                            elif objectname == "LightFixture":
-                                data = {
-                                    "type":objectdata[0],
-                                    "panelPosX":objectdata[1],
-                                    "panelPosY":objectdata[2],
-                                    "randomSeed":objectdata[3]
-                                    }
+                                elif objectname == "LightFixture":
+                                    data = {
+                                        "rawCoordX":objectposx,
+                                        "rawCoordY":objectposy,
+                                        "type":objectdata[0],
+                                        "panelPosX":objectdata[1],
+                                        "panelPosY":objectdata[2],
+                                        "randomSeed":objectdata[3]
+                                        }
 
-                            elif objectname == "SSLightRod":
-                                data = {
-                                    "panelPosX":objectdata[0],
-                                    "panelPosY":objectdata[1],
-                                    "depth":objectdata[2],
-                                    "rotation":objectdata[3],
-                                    "length":objectdata[4],
-                                    "brightness":objectdata[5]
-                                    }
+                                elif objectname == "SSLightRod":
+                                    data = {
+                                        "rawCoordX":objectposx,
+                                        "rawCoordY":objectposy,
+                                        "panelPosX":objectdata[0],
+                                        "panelPosY":objectdata[1],
+                                        "depth":objectdata[2],
+                                        "rotation":objectdata[3],
+                                        "length":objectdata[4],
+                                        "brightness":objectdata[5]
+                                        }
 
-                            elif objectname == "CellDistortion":
-                                data = {
-                                    "handlePosX":objectdata[0],
-                                    "handlePosY":objectdata[1],
-                                    "panelPosX":objectdata[2],
-                                    "panelPosY":objectdata[3],
-                                    "intensity":objectdata[4],
-                                    "scale":objectdata[5],
-                                    "chromaticIntensity":objectdata[6],
-                                    "timeMult":objectdata[7]
-                                    }
+                                elif objectname == "CellDistortion":
+                                    data = {
+                                        "rawCoordX":objectposx,
+                                        "rawCoordY":objectposy,
+                                        "handlePosX":objectdata[0],
+                                        "handlePosY":objectdata[1],
+                                        "panelPosX":objectdata[2],
+                                        "panelPosY":objectdata[3],
+                                        "intensity":objectdata[4],
+                                        "scale":objectdata[5],
+                                        "chromaticIntensity":objectdata[6],
+                                        "timeMult":objectdata[7]
+                                        }
 
-                            elif objectname == "OESphere":
-                                data = {
-                                    "handlePosX":objectdata[0],
-                                    "handlePosY":objectdata[1],
-                                    "panelPosX":objectdata[2],
-                                    "panelPosY":objectdata[3],
-                                    "depth":objectdata[4],
-                                    "intensity":objectdata[5]
-                                    }
+                                elif objectname == "OESphere":
+                                    data = {
+                                        "rawCoordX":objectposx,
+                                        "rawCoordY":objectposy,
+                                        "handlePosX":objectdata[0],
+                                        "handlePosY":objectdata[1],
+                                        "panelPosX":objectdata[2],
+                                        "panelPosY":objectdata[3],
+                                        "depth":objectdata[4],
+                                        "intensity":objectdata[5]
+                                        }
 
-                            elif objectname == "SnowSource":
-                                data = {
-                                    "shape":objectdata[0],
-                                    "handlePosX":objectdata[1],
-                                    "handlePosY":objectdata[2],
-                                    "panelPosX":objectdata[3],
-                                    "panelPosY":objectdata[4],
-                                    "intensity":objectdata[5],
-                                    "noisiness":objectdata[6]
-                                    }
+                                elif objectname == "SnowSource":
+                                    data = {
+                                        "rawCoordX":objectposx,
+                                        "rawCoordY":objectposy,
+                                        "shape":objectdata[0],
+                                        "handlePosX":objectdata[1],
+                                        "handlePosY":objectdata[2],
+                                        "panelPosX":objectdata[3],
+                                        "panelPosY":objectdata[4],
+                                        "intensity":objectdata[5],
+                                        "noisiness":objectdata[6]
+                                        }
 
-                            elif objectname == "LocalBlizzard":
-                                data = {
-                                    "handlePosX":objectdata[0],
-                                    "handlePosY":objectdata[1],
-                                    "panelPosX":objectdata[2],
-                                    "panelPosY":objectdata[3],
-                                    "intensity":objectdata[4],
-                                    "scale":objectdata[5],
-                                    "angle":objectdata[6]
-                                    }
+                                elif objectname == "LocalBlizzard":
+                                    data = {
+                                        "rawCoordX":objectposx,
+                                        "rawCoordY":objectposy,
+                                        "handlePosX":objectdata[0],
+                                        "handlePosY":objectdata[1],
+                                        "panelPosX":objectdata[2],
+                                        "panelPosY":objectdata[3],
+                                        "intensity":objectdata[4],
+                                        "scale":objectdata[5],
+                                        "angle":objectdata[6]
+                                        }
 
-                            elif objectname == "LightingMachine":
-                                data = {
-                                    "panelPosX":objectdata[0],
-                                    "panelPosY":objectdata[1],
-                                    "posX":objectdata[2],
-                                    "posY":objectdata[3],
-                                    "startPointX":objectdata[4],
-                                    "startPointY":objectdata[5],
-                                    "endPointX":objectdata[5],
-                                    "endPointY":objectdata[6],
-                                    "chance":objectdata[7],
-                                    "permanent":objectdata[8],
-                                    "radial":objectdata[9],
-                                    "width":objectdata[10],
-                                    "intensity":objectdata[11],
-                                    "lifeTime":objectdata[12],
-                                    "lightingParam":objectdata[13],
-                                    "lightingType":objectdata[14],
-                                    "impact":objectdata[15],
-                                    "volume":objectdata[16],
-                                    "soundType":objectdata[17],
-                                    "random":bool(objectdata[18]),
-                                    "light":bool(objectdata[19])
-                                    }
+                                elif objectname == "LightingMachine":
+                                    data = {
+                                        "rawCoordX":objectposx,
+                                        "rawCoordY":objectposy,
+                                        "panelPosX":objectdata[0],
+                                        "panelPosY":objectdata[1],
+                                        "posX":objectdata[2],
+                                        "posY":objectdata[3],
+                                        "startPointX":objectdata[4],
+                                        "startPointY":objectdata[5],
+                                        "endPointX":objectdata[5],
+                                        "endPointY":objectdata[6],
+                                        "chance":objectdata[7],
+                                        "permanent":objectdata[8],
+                                        "radial":objectdata[9],
+                                        "width":objectdata[10],
+                                        "intensity":objectdata[11],
+                                        "lifeTime":objectdata[12],
+                                        "lightingParam":objectdata[13],
+                                        "lightingType":objectdata[14],
+                                        "impact":objectdata[15],
+                                        "volume":objectdata[16],
+                                        "soundType":objectdata[17],
+                                        "random":bool(objectdata[18]),
+                                        "light":bool(objectdata[19])
+                                        }
 
-                            elif objectname == "EnergySwirl":
-                                data = {
-                                    "colorType":objectdata[0],
-                                    "handlePosX":objectdata[1],
-                                    "handlePosY":objectdata[2],
-                                    "panelPosX":objectdata[3],
-                                    "panelPosY":objectdata[4],
-                                    "depth":objectdata[5]
-                                    }
+                                elif objectname == "EnergySwirl":
+                                    data = {
+                                        "rawCoordX":objectposx,
+                                        "rawCoordY":objectposy,
+                                        "colorType":objectdata[0],
+                                        "handlePosX":objectdata[1],
+                                        "handlePosY":objectdata[2],
+                                        "panelPosX":objectdata[3],
+                                        "panelPosY":objectdata[4],
+                                        "depth":objectdata[5]
+                                        }
 
-                            elif objectname == "DayNightSettings":
-                                data = {
-                                    "panelPosX":objectdata[0],
-                                    "panelPosY":objectdata[1],
-                                    "duskPalette":objectdata[2],
-                                    "nightPalette":objectdata[3]
-                                    }
+                                elif objectname == "DayNightSettings":
+                                    data = {
+                                        "rawCoordX":objectposx,
+                                        "rawCoordY":objectposy,
+                                        "panelPosX":objectdata[0],
+                                        "panelPosY":objectdata[1],
+                                        "duskPalette":objectdata[2],
+                                        "nightPalette":objectdata[3]
+                                        }
 
-                            elif objectname == "FairyParticleSettings":
-                                data = {
-                                    "panelPosX":objectdata[0],
-                                    "panelPosY":objectdata[1],
-                                    "absPulse":bool(objectdata[2]),
-                                    "pulseMin":objectdata[3],
-                                    "pulseMax":objectdata[4],
-                                    "pulseRate":objectdata[5],
-                                    "scaleMin":objectdata[6],
-                                    "scaleMax":objectdata[7],
-                                    "interpDurMin":objectdata[8],
-                                    "interpDurMax":objectdata[9],
-                                    "interpDistMin":objectdata[10],
-                                    "interpDistMax":objectdata[11],
-                                    "dirDevMin":objectdata[12],
-                                    "dirDevMax":objectdata[13],
-                                    "dirMin":objectdata[14],
-                                    "dirMax":objectdata[15],
-                                    "colorHmin":objectdata[16],
-                                    "colorHmax":objectdata[17],
-                                    "colorSmin":objectdata[18],
-                                    "colorSmax":objectdata[19],
-                                    "colorLmin":objectdata[20],
-                                    "colorLmax":objectdata[21],
-                                    "interpTrans":objectdata[22],
-                                    "alphaTrans":objectdata[23],
-                                    "numKeyframes":objectdata[24],
-                                    "spriteType":objectdata[25],
-                                    "dirLerpType":objectdata[26],
-                                    "speedLerpType":objectdata[27],
-                                    "glowRad":objectdata[28],
-                                    "glowStrength":objectdata[29],
-                                    "rotationRate":objectdata[30]
-                                    }
-
+                                elif objectname == "FairyParticleSettings":
+                                    data = {
+                                        "rawCoordX":objectposx,
+                                        "rawCoordY":objectposy,
+                                        "panelPosX":objectdata[0],
+                                        "panelPosY":objectdata[1],
+                                        "absPulse":bool(objectdata[2]),
+                                        "pulseMin":objectdata[3],
+                                        "pulseMax":objectdata[4],
+                                        "pulseRate":objectdata[5],
+                                        "scaleMin":objectdata[6],
+                                        "scaleMax":objectdata[7],
+                                        "interpDurMin":objectdata[8],
+                                        "interpDurMax":objectdata[9],
+                                        "interpDistMin":objectdata[10],
+                                        "interpDistMax":objectdata[11],
+                                        "dirDevMin":objectdata[12],
+                                        "dirDevMax":objectdata[13],
+                                        "dirMin":objectdata[14],
+                                        "dirMax":objectdata[15],
+                                        "colorHmin":objectdata[16],
+                                        "colorHmax":objectdata[17],
+                                        "colorSmin":objectdata[18],
+                                        "colorSmax":objectdata[19],
+                                        "colorLmin":objectdata[20],
+                                        "colorLmax":objectdata[21],
+                                        "interpTrans":objectdata[22],
+                                        "alphaTrans":objectdata[23],
+                                        "numKeyframes":objectdata[24],
+                                        "spriteType":objectdata[25],
+                                        "dirLerpType":objectdata[26],
+                                        "speedLerpType":objectdata[27],
+                                        "glowRad":objectdata[28],
+                                        "glowStrength":objectdata[29],
+                                        "rotationRate":objectdata[30]
+                                        }
+                                elif objectname == "Rainbow":
+                                    data = {
+                                        "rawCoordX":objectposx,
+                                        "rawCoordY":objectposy,
+                                        "handlePosX":objectdata[0],
+                                        "handlePosY":objectdata[1],
+                                        "panelPosX":objectdata[2],
+                                        "panelPosY":objectdata[3],
+                                        "fades":objectdata[4]
+                                        }
+                                
                             PlacedObject = {
                                 "room":roomname,
                                 "object":objectname,
@@ -1257,6 +1346,76 @@ def do_slugcat(slugcat: str):
                             placedobject_features.append(geojson.Feature(
                                 geometry=geojson.Point(np.array(objectcoords).round().tolist()),
                                 properties=PlacedObject))
+                dofilter = True
+                if dofilter:            
+                    for filters in placedobject_features:
+                        objectname = filters.properties["object"]
+                        roomname = filters.properties["room"]
+                        if objectname == "Filter":
+                            objectsInFilter = []
+                            print("found object: " + objectname + " in " + roomname)
+                            filterx = float(filters.properties["data"]["rawCoordX"])
+                            filtery = float(filters.properties["data"]["rawCoordY"])
+                            handlex = float(filters.properties["data"]["handlePosX"])
+                            handley = float(filters.properties["data"]["handlePosY"])
+                            panelx = float(filters.properties["data"]["panelPosX"])
+                            panely = float(filters.properties["data"]["panelPosY"])
+                            filterToPlayers = filters.properties["data"]["availableToPlayers"]
+                            print(filterToPlayers)
+                            # radius of filter
+                            sqrfr = math.pow(handlex, 2) + math.pow(handley, 2)
+                            fr = math.sqrt(sqrfr)
+                            filteredplacedobjects = placedobject_features
+                            # go through non-filter objects to match ones within 
+                            for feature in placedobject_features:
+                                #print(feature)
+                                objectroom = feature.properties["room"]
+                                name = feature.properties["object"]
+                                        
+                                if name != "Filter" and objectroom == roomname:
+                                    filteredobjectx = float(feature.properties["data"]["rawCoordX"])
+                                    filteredobjecty = float(feature.properties["data"]["rawCoordY"])
+                                    sqrdist = math.pow((filteredobjectx - filterx), 2) + math.pow((filteredobjecty - filtery), 2)
+                                    dist = math.sqrt(sqrdist)
+                                    #Remove object within a filter from the list of all objects, then inject it into the master filter
+                                    if dist <= fr:
+                                        print("room: " + objectroom + " | object: " + name + " | object within radius of filter")
+                                        print("distance from filter: " + str(dist) + " | radius of filter: " + str(fr))
+                                        objectsInFilter.append(placedobject_features.pop(placedobject_features.index(feature)))
+                                        withinplayers = False
+                                        for player in filterToPlayers:
+                                            if slugcat != player:
+                                                continue
+                                            else:
+                                                print(name + " is active for " + slugcat + " in " + filterToPlayers)
+                                                withinplayers = True
+                                                break
+                                                        
+                                        if not withinplayers:
+                                            print("Not active for current slugcat " + slugcat)
+                                    else:
+                                        print("object " + name)
+                                       
+                            data = {
+                                "rawCoordX":filterx,
+                                "rawCoordY":filtery,
+                                "handlePosX":handlex,
+                                "handlePosY":handley,
+                                "panelPosX":panelx,
+                                "panelPosY":panely,
+                                "availableToPlayers":filterToPlayers
+                            }
+                            filterWithObjects = {
+                                "room":roomname,
+                                "object":objectname,
+                                "data":data,
+                                "objectsInFilter":objectsInFilter
+                                }
+                            # take objects that the filter applies to and stick the list into the filter properties
+                                    
+                            placedobject_features[placedobject_features.index(filters)] = (geojson.Feature(
+                                geometry=geojson.Point(np.array(objectcoords).round().tolist()),
+                                properties=filterWithObjects))              
 
                 # were it so easy
                 print("placed object task done!")
