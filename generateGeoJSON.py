@@ -32,7 +32,7 @@ four_directions = [np.array([-1,0]),np.array([0,-1]),np.array([1,0]),np.array([0
 center_of_tile = np.array([10,10])
 # File Paths
 screenshots_root = "./py-input"
-output_folder = "./filter_test_py-output"
+output_folder = "./Filters_Added_py-output"
 streaming_assets = "C:\Program Files (x86)\Steam\steamapps\common\Rain World\RainWorld_Data\StreamingAssets"
 mergedmodsprefix = streaming_assets + "\mergedmods\world"
 mscprefix = streaming_assets + "\mods\moreslugcats\world"
@@ -41,9 +41,9 @@ vanillaprefix = streaming_assets + "\world"
 optimize_geometry = False
 skip_existing_tiles = False
 # None, "yellow, white, red, gourmand, artificer, rivulet, spear, saint, inv", "yellow", "yellow, white, red"
-only_slugcat = "white"
+only_slugcat = None
 # None, "cc", "cc, su, ss, sb, sh"
-only_region = "si"
+only_region = None
 # Export
 task_export_tiles = False
 task_export_features = True
@@ -683,10 +683,8 @@ def do_slugcat(slugcat: str):
                 ismsc = False
                 isvanilla = False
                 worldsources = ([mscprefix,"MSC",ismsc,mscpath],[mergedmodsprefix,"MergedMods",ismergedmods,mergedmodspath],[vanillaprefix,"Vanilla",isvanilla,vanillapath])
-                inroomobjects = [] # the list of collective objects within a singular room
-                filterlist = []
                 steampipes = ("SteamPipe","WallSteamer")
-                quadobject = ("SpotLight","SuperJumpInstruction","DeepProcessing","CustomDecal")
+                quadobject = ("SpotLight","SuperJumpInstruction","DeepProcessing","CustomDecal","LightBeam")
                 gridrectobject = ("ZapCoil","SuperStructureFuses")
                 multiplayeritems = ("Rock","Spear","ExplosiveSpear","Bomb","SporePlant")
                 collecttokens = ("GoldToken","BlueToken","GreenToken","WhiteToken","RedToken","DevToken")
@@ -770,7 +768,7 @@ def do_slugcat(slugcat: str):
                                     worldsource[2] = False
                                     worldsource[3] = ""
                                 #print("No generic settings in " + worldsource[1])
-                            
+
                         # MSC FIRST
                         # NOT mergedmods first; will cause issues with duplicate gates in msc and vanilla, since their actual per region usage isn't explicit
                         # about modifed and merged files; if a file exists in msc, it will only be a full file, either original or overwriting, whereas modified files
@@ -794,7 +792,7 @@ def do_slugcat(slugcat: str):
 
                         # make sure that the resolved path and world source are the same
                         if resolvedpath:
-                            #print("Using " + resolvedpath)
+                            print("Using " + resolvedpath)
                             return resolvedpath
 
                     path = fileresolver(roomName)
@@ -824,13 +822,12 @@ def do_slugcat(slugcat: str):
 
                     rawplacedobjects = str(rawplacedobjects).partition(": ")[-1].rstrip(", \n")
                     listplacedobjects = rawplacedobjects.split(", ")
-                    
-                    filteritems = []
 
                     # since objects have independent positions; each object has its own geometry, properties pair
+                    print("There are " + str(len(listplacedobjects)) + " objects in " + roomname)
                     for roomobject in listplacedobjects:
                         if len(roomobject) <= 3:
-                            print("object is a stub, skipping: \"" + roomobject + "\"")
+                            print("object is a stub, skipping: object " + str(listplacedobjects.index(roomobject)) + ": \"" + roomobject + "\"")
                             continue
                         elif "><" not in roomobject:
                             print("Object " + roomobject + ' does not contain "><" value delimiters, ')
@@ -858,7 +855,7 @@ def do_slugcat(slugcat: str):
                             else:
                                 objectdata = objectentry[3].split("~")
                                 data = objectdata
-                                
+
                             # Hefty-ass load of unique instances of object data
                             processdata = True
                             if processdata:
@@ -870,7 +867,7 @@ def do_slugcat(slugcat: str):
                                             "rawCoordY":objectposy,
                                             "handlePosX":objectdata[0],
                                             "handlePosY":objectdata[1]
-                                            }
+                                        }
 
                                 for placedobject in quadobject:
                                     if objectname == placedobject:
@@ -883,7 +880,62 @@ def do_slugcat(slugcat: str):
                                             "handles[1]Y":objectdata[3],
                                             "handles[2]X":objectdata[4],
                                             "handles[2]Y":objectdata[5]
+                                        }
+                                    if objectname == "LightBeam":
+                                        data = {
+                                            "rawCoordX":objectposx,
+                                            "rawCoordY":objectposy,
+                                            "handles[0]X":objectdata[0],
+                                            "handles[0]Y":objectdata[1],
+                                            "handles[1]X":objectdata[2],
+                                            "handles[1]Y":objectdata[3],
+                                            "handles[2]X":objectdata[4],
+                                            "handles[2]Y":objectdata[5],
+                                            "panelPosX":objectdata[6],
+                                            "panelPosY":objectdata[7],
+                                            "alpha":objectdata[8],
+                                            "colorA":objectdata[9],
+                                            "colorB":objectdata[10]
+                                        }
+                                        if len(objectdata) > 12:
+                                            data = {
+                                                "rawCoordX":objectposx,
+                                                "rawCoordY":objectposy,
+                                                "handles[0]X":objectdata[0],
+                                                "handles[0]Y":objectdata[1],
+                                                "handles[1]X":objectdata[2],
+                                                "handles[1]Y":objectdata[3],
+                                                "handles[2]X":objectdata[4],
+                                                "handles[2]Y":objectdata[5],
+                                                "panelPosX":objectdata[6],
+                                                "panelPosY":objectdata[7],
+                                                "alpha":objectdata[8],
+                                                "colorA":objectdata[9],
+                                                "colorB":objectdata[10],
+                                                "sun":objectdata[11], # ? 1 : 0
+                                                "blinkType":objectdata[12],
+                                                "blinkRate":objectdata[13],
+                                                "nightLight":objectdata[14] # ? 1 : 0
                                             }
+                                        elif len(objectdata) > 11:
+                                            data = {
+                                                "rawCoordX":objectposx,
+                                                "rawCoordY":objectposy,
+                                                "handles[0]X":objectdata[0],
+                                                "handles[0]Y":objectdata[1],
+                                                "handles[1]X":objectdata[2],
+                                                "handles[1]Y":objectdata[3],
+                                                "handles[2]X":objectdata[4],
+                                                "handles[2]Y":objectdata[5],
+                                                "panelPosX":objectdata[6],
+                                                "panelPosY":objectdata[7],
+                                                "alpha":objectdata[8],
+                                                "colorA":objectdata[9],
+                                                "colorB":objectdata[10],
+                                                "sun":objectdata[11] # ? 1 : 0
+                                            }
+                                        elif len(objectdata) != 11:
+                                            print("ISSUE: " + objectname + ", Actual data length: " + str(len(objectdata)) + ", Proper data length(s): 11, 12, & 15")
 
                                     if objectname == "CustomDecal":
                                         data = {
@@ -902,7 +954,7 @@ def do_slugcat(slugcat: str):
                                             "noise":objectdata[10],
                                             "imageName":objectdata[11]
                                             }
-                                        if len(objectdata) >= 20:
+                                        if len(objectdata) > 19:
                                             vertices = []
                                             l = 12
                                             while l < len(objectdata):
@@ -927,7 +979,7 @@ def do_slugcat(slugcat: str):
                                                 "vertices":vertices
                                                 }
                                         elif len(objectdata) != 12:
-                                            print("ISSUE: " + objectname + ", Actual data length: " + str(len(objectname)) + ", Proper data length(s): 12 & 20")
+                                            print("ISSUE: " + objectname + ", Actual data length: " + str(len(objectdata)) + ", Proper data length(s): 12 & 20")
 
                                     if objectname == "DeepProcessing":
                                         data = {
@@ -1041,7 +1093,7 @@ def do_slugcat(slugcat: str):
                                                 "maxRegen":objectdata[3]
                                                 }
                                         else:
-                                            print("ISSUE: " + objectname + ", Actual data length: " + str(len(objectname)) + ", Proper data length: 4")
+                                            print("ISSUE: " + objectname + ", Actual data length: " + str(len(objectdata)) + ", Proper data length: 4")
 
                                     if objectname == "VoidSpawnEgg":
                                         if len(objectdata) >= 5:
@@ -1055,7 +1107,7 @@ def do_slugcat(slugcat: str):
                                                 "exit":objectdata[4]
                                                 }
                                         else:
-                                            print("ISSUE: " + objectname + ", Actual data length: " + str(len(objectname)) + ", Proper data length: 5")
+                                            print("ISSUE: " + objectname + ", Actual data length: " + str(len(objectdata)) + ", Proper data length: 5")
 
                                     for placedobject in datapearl:
                                         if objectname == placedobject:
@@ -1071,7 +1123,7 @@ def do_slugcat(slugcat: str):
                                                     "hidden":objectdata[5]
                                                     }
                                             else:
-                                                print("ISSUE: " + objectname + ", Actual data length: " + str(len(objectname)) + ", Proper data length: 5")
+                                                print("ISSUE: " + objectname + ", Actual data length: " + str(len(objectdata)) + ", Proper data length: 5")
 
                                 for placedobject in resizableobjects:
                                     if objectname == placedobject:
@@ -1164,7 +1216,7 @@ def do_slugcat(slugcat: str):
                                             "blinkRate":objectdata[9],
                                         }
                                     elif len(objectdata) != 8:
-                                        print("ISSUE: " + objectname + ", Actual data length: " + str(len(objectname)) + ", Proper data length(s): 8, 10, & 11")
+                                        print("ISSUE: " + objectname + ", Actual data length: " + str(len(objectdata)) + ", Proper data length(s): 8, 10, & 11")
                                     
                                 elif objectname == "LightFixture":
                                     data = {
@@ -1335,7 +1387,7 @@ def do_slugcat(slugcat: str):
                                         "panelPosY":objectdata[3],
                                         "fades":objectdata[4]
                                         }
-                                
+
                             PlacedObject = {
                                 "room":roomname,
                                 "object":objectname,
@@ -1346,56 +1398,33 @@ def do_slugcat(slugcat: str):
                             placedobject_features.append(geojson.Feature(
                                 geometry=geojson.Point(np.array(objectcoords).round().tolist()),
                                 properties=PlacedObject))
+
+                # read from the original feature list, then modify a copy of the list, to later replace the original with when finished
                 dofilter = True
-                if dofilter:            
-                    for filters in placedobject_features:
-                        objectname = filters.properties["object"]
-                        roomname = filters.properties["room"]
-                        if objectname == "Filter":
-                            objectsInFilter = []
-                            print("found object: " + objectname + " in " + roomname)
-                            filterx = float(filters.properties["data"]["rawCoordX"])
-                            filtery = float(filters.properties["data"]["rawCoordY"])
-                            handlex = float(filters.properties["data"]["handlePosX"])
-                            handley = float(filters.properties["data"]["handlePosY"])
-                            panelx = float(filters.properties["data"]["panelPosX"])
-                            panely = float(filters.properties["data"]["panelPosY"])
-                            filterToPlayers = filters.properties["data"]["availableToPlayers"]
-                            print(filterToPlayers)
+                if dofilter:
+                    filteredplacedobject_features = placedobject_features
+                    totalFilters = 0
+                    allFilteredObjects = []
+                    for filterObject in placedobject_features:
+                        objectname = filterObject.properties["object"]
+                        roomname = filterObject.properties["room"]
+                        #print("before block: " + objectname)
+                        objectsInFilter = []
+                        if str(objectname) == "Filter":
+                            totalFilters += 1
+                            yoinkedGeometry = filterObject.geometry
+                            filterx = float(filterObject.properties["data"]["rawCoordX"])
+                            filtery = float(filterObject.properties["data"]["rawCoordY"])
+                            handlex = float(filterObject.properties["data"]["handlePosX"])
+                            handley = float(filterObject.properties["data"]["handlePosY"])
+                            panelx = float(filterObject.properties["data"]["panelPosX"])
+                            panely = float(filterObject.properties["data"]["panelPosY"])
+                            filterToPlayers = filterObject.properties["data"]["availableToPlayers"]
+
                             # radius of filter
                             sqrfr = math.pow(handlex, 2) + math.pow(handley, 2)
                             fr = math.sqrt(sqrfr)
-                            filteredplacedobjects = placedobject_features
-                            # go through non-filter objects to match ones within 
-                            for feature in placedobject_features:
-                                #print(feature)
-                                objectroom = feature.properties["room"]
-                                name = feature.properties["object"]
-                                        
-                                if name != "Filter" and objectroom == roomname:
-                                    filteredobjectx = float(feature.properties["data"]["rawCoordX"])
-                                    filteredobjecty = float(feature.properties["data"]["rawCoordY"])
-                                    sqrdist = math.pow((filteredobjectx - filterx), 2) + math.pow((filteredobjecty - filtery), 2)
-                                    dist = math.sqrt(sqrdist)
-                                    #Remove object within a filter from the list of all objects, then inject it into the master filter
-                                    if dist <= fr:
-                                        print("room: " + objectroom + " | object: " + name + " | object within radius of filter")
-                                        print("distance from filter: " + str(dist) + " | radius of filter: " + str(fr))
-                                        objectsInFilter.append(placedobject_features.pop(placedobject_features.index(feature)))
-                                        withinplayers = False
-                                        for player in filterToPlayers:
-                                            if slugcat != player:
-                                                continue
-                                            else:
-                                                print(name + " is active for " + slugcat + " in " + filterToPlayers)
-                                                withinplayers = True
-                                                break
-                                                        
-                                        if not withinplayers:
-                                            print("Not active for current slugcat " + slugcat)
-                                    else:
-                                        print("object " + name)
-                                       
+                            
                             data = {
                                 "rawCoordX":filterx,
                                 "rawCoordY":filtery,
@@ -1405,22 +1434,66 @@ def do_slugcat(slugcat: str):
                                 "panelPosY":panely,
                                 "availableToPlayers":filterToPlayers
                             }
+
+                            print("Filter in use is: " + str(yoinkedGeometry))
+                            print("Room: " + roomname + " | Object: " + objectname)
+                            print(filterToPlayers)
+                            print("Filter Radius: " + str(fr) + " | Current Slugcat: " + slugcat)
+
+                            processedObjectCount = 0
+                            filterObjectCount = 0
+
                             filterWithObjects = {
                                 "room":roomname,
                                 "object":objectname,
                                 "data":data,
                                 "objectsInFilter":objectsInFilter
-                                }
-                            # take objects that the filter applies to and stick the list into the filter properties
-                                    
-                            placedobject_features[placedobject_features.index(filters)] = (geojson.Feature(
-                                geometry=geojson.Point(np.array(objectcoords).round().tolist()),
-                                properties=filterWithObjects))              
+                            }
+                            filterObject.properties = filterWithObjects
+                            # go through non-filter objects to match ones within
+                            for processedObject in placedobject_features:
+                                objectroom = processedObject.properties["room"]
+                                name = processedObject.properties["object"]
+                                if objectroom == roomname:
+                                    if objectname != name:
+                                        processedObjectCount += 1
+                                        #print(processedObject)
+                                        filteredobjectx = float(processedObject.properties["data"]["rawCoordX"])
+                                        filteredobjecty = float(processedObject.properties["data"]["rawCoordY"])
+                                        sqrdist = math.pow((filteredobjectx - filterx), 2) + math.pow((filteredobjecty - filtery), 2)
+                                        dist = math.sqrt(sqrdist)
+                                        #Remove object within a filter from the list of all objects, then inject it into the master filter
+                                        if dist <= fr:
+                                            print("Object: " + name + " | Distance from filter: " + str(dist) + " | ", end='')
+                                            print("Within Radius: YES")
+                                            # FUCK YOU pop()
+                                            objectsInFilter.append(processedObject)
+                                        #else:
+                                            #print("Within Radius: no")
+                                    else:
+                                        filterObjectCount += 1
+
+                            print(roomname + " | Object Count: " + str(processedObjectCount) + " | Filter Count: " + str(filterObjectCount))
+                            # take objects that the filter applies to and stick the list under filter properties
+                            filteredplacedobject_features[filteredplacedobject_features.index(filterObject)]=(geojson.Feature(geometry=yoinkedGeometry,properties=filterWithObjects))
+                            allFilteredObjects.append(objectsInFilter)
+
+                    print("Total filters in region: " + str(totalFilters))
+                    #print(allFilteredObjects)
+                    # Delete the original features that were pulled into the filters, after the group of features is done being read from, so, ya know, we don't cause 
+                    # issues for rooms with multiple filter objects, cuz we don't want to be shifting indexes or other problems, or just using pop() in general
+                    for roomfilter in allFilteredObjects:
+                        for roomobject in roomfilter:
+                            #print("roomobject: " + str(roomobject))
+                            filteredplacedobject_features[filteredplacedobject_features.index(roomobject)] = ""
+
+                    #Since filter process is done, we can now update the original
+                    features["placedobject_features"] = filteredplacedobject_features
 
                 # were it so easy
                 print("placed object task done!")
-           
-            ##Shortcuts
+
+            ## Shortcuts
             if task_export_tilenode_features:
                 shortcut_features = []
                 features["tilenode_features"] = shortcut_features
@@ -1746,7 +1819,7 @@ def do_slugcat(slugcat: str):
                             coords = camera.split(",")
                             camX = coords[0]
                             camY = coords[1]
-                        
+
                             cameras = ("camera: " + camera,"camX: " + camX,"camY: " + camY)
 
                             cameralist.append(cameras)
@@ -1803,7 +1876,7 @@ def do_slugcat(slugcat: str):
                                         elif node.roomtile.coordY - basenode.roomtile.coordX == -1:
                                             print("node is adjacent to the left of basenode")
                                             shortcutnodes.append(nodecoords)
-                                        
+
                                     worldcoords = room['roomcoords'] + center_of_tile + 20* np.array(nodecoords)
 
                                     mapshortcutcoords.append(worldcoords)
@@ -1904,7 +1977,7 @@ def do_slugcat(slugcat: str):
                                         }))
                 print("room tag task done!")
 
-            ##Bat Migration Blockages
+            ## Bat Migration Blockages
             if task_export_batmigrationblockages_features:
                 if len(regiondata["batmigrationblockages"]) > 0:
                     batmigrationblockages_features = []
