@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Security.Permissions;
 using System.IO;
@@ -8,6 +9,7 @@ using System.Collections.Generic;
 using BepInEx;
 using BepInEx.Logging;
 using System.Text.RegularExpressions;
+using Random = UnityEngine.Random;
 
 #pragma warning disable CS0618 // Type or member is obsolete
 [assembly: SecurityPermission(SecurityAction.RequestMinimum, SkipVerification = true)]
@@ -56,45 +58,95 @@ sealed class MapExporter : BaseUnityPlugin
 
     public void OnEnable()
     {
-        Logger = base.Logger;
-        On.RainWorld.Update += RainWorld_Update1;
-        On.RainWorld.Start += RainWorld_Start; // "FUCK compatibility just run my hooks" - love you too henpemaz
+        try
+        {
+            Logger = base.Logger;
+            //On.RainWorld.Start += RainWorld_Start; // "FUCK compatibility just run my hooks" - love you too henpemaz
+            //On.RainWorld.PostModsInit += RainWorld_PostModsInit;
+                Logger.LogDebug("Started start thingy");
+                On.Json.Serializer.SerializeValue += Serializer_SerializeValue;
+                On.RainWorld.LoadSetupValues += RainWorld_LoadSetupValues;
+                On.RainWorld.Update += RainWorld_Update;
+                On.World.SpawnGhost += World_SpawnGhost;
+                On.GhostWorldPresence.SpawnGhost += GhostWorldPresence_SpawnGhost;
+                On.GhostWorldPresence.GhostMode_AbstractRoom_Vector2 += GhostWorldPresence_GhostMode_AbstractRoom_Vector2;
+                On.Ghost.Update += Ghost_Update;
+                On.RainWorldGame.ctor += RainWorldGame_ctor;
+                On.RainWorldGame.Update += RainWorldGame_Update;
+                On.RainWorldGame.RawUpdate += RainWorldGame_RawUpdate;
+                new Hook(typeof(RainWorldGame).GetProperty("TimeSpeedFac").GetGetMethod(), typeof(MapExporter).GetMethod("RainWorldGame_ZeroProperty"), this);
+                new Hook(typeof(RainWorldGame).GetProperty("InitialBlackSeconds").GetGetMethod(), typeof(MapExporter).GetMethod("RainWorldGame_ZeroProperty"), this);
+                new Hook(typeof(RainWorldGame).GetProperty("FadeInTime").GetGetMethod(), typeof(MapExporter).GetMethod("RainWorldGame_ZeroProperty"), this);
+                On.OverWorld.WorldLoaded += OverWorld_WorldLoaded;
+                On.Room.ReadyForAI += Room_ReadyForAI;
+                On.Room.Loaded += Room_Loaded;
+                On.Room.ScreenMovement += Room_ScreenMovement;
+                On.RoomCamera.DrawUpdate += RoomCamera_DrawUpdate;
+                On.VoidSpawnGraphics.DrawSprites += VoidSpawnGraphics_DrawSprites;
+                On.AntiGravity.BrokenAntiGravity.ctor += BrokenAntiGravity_ctor;
+                On.GateKarmaGlyph.DrawSprites += GateKarmaGlyph_DrawSprites;
+                On.WorldLoader.ctor_RainWorldGame_Name_bool_string_Region_SetupValues += WorldLoader_ctor_RainWorldGame_Name_bool_string_Region_SetupValues;
+                Logger.LogDebug("Finished start thingy");
+        }
+        catch (Exception ex)
+        {
+            Debug.LogException(ex);
+        }
     }
 
-    private void RainWorld_Update1(On.RainWorld.orig_Update orig, RainWorld self)
+    private bool IsInit = false;
+    private void RainWorld_PostModsInit(On.RainWorld.orig_PostModsInit orig, RainWorld self)
     {
-        try {
-            orig(self);
+        if (!IsInit)
+        {
+            IsInit = true;
+            try
+            {
+            }
+            catch (Exception e)
+            {
+                Logger.LogDebug("Caught start thingy");
+                Debug.LogException(e);
+            }
         }
-        catch (System.Exception e) {
-            Logger.LogError(e);
-        }
+
+        orig(self);
     }
 
     private void RainWorld_Start(On.RainWorld.orig_Start orig, RainWorld self)
     {
-        On.Json.Serializer.SerializeValue += Serializer_SerializeValue;
-        On.RainWorld.LoadSetupValues += RainWorld_LoadSetupValues;
-        On.RainWorld.Update += RainWorld_Update;
-        On.World.SpawnGhost += World_SpawnGhost;
-        On.GhostWorldPresence.SpawnGhost += GhostWorldPresence_SpawnGhost;
-        On.GhostWorldPresence.GhostMode_AbstractRoom_Vector2 += GhostWorldPresence_GhostMode_AbstractRoom_Vector2;
-        On.Ghost.Update += Ghost_Update;
-        On.RainWorldGame.ctor += RainWorldGame_ctor;
-        On.RainWorldGame.Update += RainWorldGame_Update;
-        On.RainWorldGame.RawUpdate += RainWorldGame_RawUpdate;
-        new Hook(typeof(RainWorldGame).GetProperty("TimeSpeedFac").GetGetMethod(), typeof(MapExporter).GetMethod("RainWorldGame_ZeroProperty"), this);
-        new Hook(typeof(RainWorldGame).GetProperty("InitialBlackSeconds").GetGetMethod(), typeof(MapExporter).GetMethod("RainWorldGame_ZeroProperty"), this);
-        new Hook(typeof(RainWorldGame).GetProperty("FadeInTime").GetGetMethod(), typeof(MapExporter).GetMethod("RainWorldGame_ZeroProperty"), this);
-        On.OverWorld.WorldLoaded += OverWorld_WorldLoaded;
-        On.Room.ReadyForAI += Room_ReadyForAI;
-        On.Room.Loaded += Room_Loaded;
-        On.Room.ScreenMovement += Room_ScreenMovement;
-        On.RoomCamera.DrawUpdate += RoomCamera_DrawUpdate;
-        On.VoidSpawnGraphics.DrawSprites += VoidSpawnGraphics_DrawSprites;
-        On.AntiGravity.BrokenAntiGravity.ctor += BrokenAntiGravity_ctor;
-        On.GateKarmaGlyph.DrawSprites += GateKarmaGlyph_DrawSprites;
-        On.WorldLoader.ctor_RainWorldGame_Name_bool_string_Region_SetupValues += WorldLoader_ctor_RainWorldGame_Name_bool_string_Region_SetupValues;
+        Logger.LogDebug("Started start thingy");
+        try
+        {
+            On.Json.Serializer.SerializeValue += Serializer_SerializeValue;
+            On.RainWorld.LoadSetupValues += RainWorld_LoadSetupValues;
+            On.RainWorld.Update += RainWorld_Update;
+            On.World.SpawnGhost += World_SpawnGhost;
+            On.GhostWorldPresence.SpawnGhost += GhostWorldPresence_SpawnGhost;
+            On.GhostWorldPresence.GhostMode_AbstractRoom_Vector2 += GhostWorldPresence_GhostMode_AbstractRoom_Vector2;
+            On.Ghost.Update += Ghost_Update;
+            On.RainWorldGame.ctor += RainWorldGame_ctor;
+            On.RainWorldGame.Update += RainWorldGame_Update;
+            On.RainWorldGame.RawUpdate += RainWorldGame_RawUpdate;
+            new Hook(typeof(RainWorldGame).GetProperty("TimeSpeedFac").GetGetMethod(), typeof(MapExporter).GetMethod("RainWorldGame_ZeroProperty"), this);
+            new Hook(typeof(RainWorldGame).GetProperty("InitialBlackSeconds").GetGetMethod(), typeof(MapExporter).GetMethod("RainWorldGame_ZeroProperty"), this);
+            new Hook(typeof(RainWorldGame).GetProperty("FadeInTime").GetGetMethod(), typeof(MapExporter).GetMethod("RainWorldGame_ZeroProperty"), this);
+            On.OverWorld.WorldLoaded += OverWorld_WorldLoaded;
+            On.Room.ReadyForAI += Room_ReadyForAI;
+            On.Room.Loaded += Room_Loaded;
+            On.Room.ScreenMovement += Room_ScreenMovement;
+            On.RoomCamera.DrawUpdate += RoomCamera_DrawUpdate;
+            On.VoidSpawnGraphics.DrawSprites += VoidSpawnGraphics_DrawSprites;
+            On.AntiGravity.BrokenAntiGravity.ctor += BrokenAntiGravity_ctor;
+            On.GateKarmaGlyph.DrawSprites += GateKarmaGlyph_DrawSprites;
+            On.WorldLoader.ctor_RainWorldGame_Name_bool_string_Region_SetupValues += WorldLoader_ctor_RainWorldGame_Name_bool_string_Region_SetupValues;
+            Logger.LogDebug("Finished start thingy");
+        }
+        catch (Exception e)
+        {
+            Logger.LogDebug("Caught start thingy");
+            Debug.LogException(e);
+        }
 
         orig(self);
     }
@@ -456,6 +508,8 @@ sealed class MapExporter : BaseUnityPlugin
         }
 
         File.WriteAllText(PathOfMetadata(slugcat.value, region), Json.Serialize(mapContent));
+        AssetManager.HardCleanFutileAssets();
+        GC.Collect();
 
         Logger.LogDebug("capture task done with " + region);
     }
