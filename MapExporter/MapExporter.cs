@@ -8,6 +8,8 @@ using System.Collections.Generic;
 using BepInEx;
 using BepInEx.Logging;
 using System.Text.RegularExpressions;
+using MoreSlugcats;
+using Random = UnityEngine.Random;
 
 #pragma warning disable CS0618 // Type or member is obsolete
 [assembly: SecurityPermission(SecurityAction.RequestMinimum, SkipVerification = true)]
@@ -15,14 +17,14 @@ using System.Text.RegularExpressions;
 
 namespace MapExporter;
 
-[BepInPlugin("io.github.henpemaz-dual", "Map Exporter", "1.0.0")]
+[BepInPlugin("io.github.henpemaz-dual-juliacat-alduris", "Map Exporter Downpour", "1.3.0")]
 sealed class MapExporter : BaseUnityPlugin
 {
     // Config
-    static readonly string[] captureSpecific = { }; // For example, "White;SU" loads Outskirts as Survivor
-    static readonly bool screenshots = true;
+    static readonly string[] CaptureSpecific = { }; // For example, "White;SU" loads Outskirts as Survivor
+    static readonly bool Screenshots = true;
 
-    static readonly Dictionary<string, int[]> blacklistedCams = new()
+    static readonly Dictionary<string, int[]> CameraBlacklist = new()
     {
         { "SU_B13", new int[]{2} }, // one indexed
         { "GW_S08", new int[]{2} }, // in vanilla only
@@ -31,22 +33,30 @@ sealed class MapExporter : BaseUnityPlugin
 
     public static new ManualLogSource Logger;
 
+
+    public static bool eu = true;
+
     public static bool NotHiddenRoom(AbstractRoom room) => !HiddenRoom(room);
     public static bool HiddenRoom(AbstractRoom room)
     {
-        if (room == null) {
+        if (room == null)
+        {
             return true;
         }
-        if (room.world.DisabledMapRooms.Contains(room.name, System.StringComparer.InvariantCultureIgnoreCase)) {
+        if (room.world.DisabledMapRooms.Contains(room.name, System.StringComparer.InvariantCultureIgnoreCase))
+        {
             Logger.LogDebug($"Room {room.world.game.StoryCharacter}/{room.name} is disabled");
             return true;
         }
-        if (!room.offScreenDen) {
-            if (room.connections.Length == 0) {
+        if (!room.offScreenDen)
+        {
+            if (room.connections.Length == 0)
+            {
                 Logger.LogDebug($"Room {room.world.game.StoryCharacter}/{room.name} with no outward connections is ignored");
                 return true;
             }
-            if (room.connections.All(r => room.world.GetAbstractRoom(r) is not AbstractRoom other || !other.connections.Contains(room.index))) {
+            if (room.connections.All(r => room.world.GetAbstractRoom(r) is not AbstractRoom other || !other.connections.Contains(room.index)))
+            {
                 Logger.LogDebug($"Room {room.world.game.StoryCharacter}/{room.name} with no inward connections is ignored");
                 return true;
             }
@@ -63,10 +73,12 @@ sealed class MapExporter : BaseUnityPlugin
 
     private void RainWorld_Update1(On.RainWorld.orig_Update orig, RainWorld self)
     {
-        try {
+        try
+        {
             orig(self);
         }
-        catch (System.Exception e) {
+        catch (System.Exception e)
+        {
             Logger.LogError(e);
         }
     }
@@ -101,10 +113,12 @@ sealed class MapExporter : BaseUnityPlugin
 
     private void Serializer_SerializeValue(On.Json.Serializer.orig_SerializeValue orig, Json.Serializer self, object value)
     {
-        if (value is IJsonObject obj) {
+        if (value is IJsonObject obj)
+        {
             orig(self, obj.ToJson());
         }
-        else {
+        else
+        {
             orig(self, value);
         }
     }
@@ -120,9 +134,11 @@ sealed class MapExporter : BaseUnityPlugin
     // shortcut consistency
     private void RoomCamera_DrawUpdate(On.RoomCamera.orig_DrawUpdate orig, RoomCamera self, float timeStacker, float timeSpeed)
     {
-        if (self.room != null && self.room.shortcutsBlinking != null) {
+        if (self.room != null && self.room.shortcutsBlinking != null)
+        {
             self.room.shortcutsBlinking = new float[self.room.shortcuts.Length, 4];
-            for (int i = 0; i < self.room.shortcutsBlinking.GetLength(0); i++) {
+            for (int i = 0; i < self.room.shortcutsBlinking.GetLength(0); i++)
+            {
                 self.room.shortcutsBlinking[i, 3] = -1;
             }
         }
@@ -139,7 +155,7 @@ sealed class MapExporter : BaseUnityPlugin
         self.myTimeStacker += 2f;
         orig(self, dt);
     }
-    //  no grav swithcing
+    //  no grav switching
     private void BrokenAntiGravity_ctor(On.AntiGravity.BrokenAntiGravity.orig_ctor orig, AntiGravity.BrokenAntiGravity self, int cycleMin, int cycleMax, RainWorldGame game)
     {
         orig(self, cycleMin, cycleMax, game);
@@ -157,8 +173,10 @@ sealed class MapExporter : BaseUnityPlugin
         sLeaser.sprites[1].shader = FShader.defaultShader;
         sLeaser.sprites[1].color = Color.white;
 
-        if (self.requirement == MoreSlugcats.MoreSlugcatsEnums.GateRequirement.RoboLock) {
-            for (int i = 2; i < 11; i++) {
+        if (self.requirement == MoreSlugcats.MoreSlugcatsEnums.GateRequirement.RoboLock)
+        {
+            for (int i = 2; i < 11; i++)
+            {
                 sLeaser.sprites[i].shader = FShader.defaultShader;
                 sLeaser.sprites[i].color = Color.white;
             }
@@ -185,7 +203,8 @@ sealed class MapExporter : BaseUnityPlugin
     // don't let them affect nearby rooms
     private float GhostWorldPresence_GhostMode_AbstractRoom_Vector2(On.GhostWorldPresence.orig_GhostMode_AbstractRoom_Vector2 orig, GhostWorldPresence self, AbstractRoom testRoom, Vector2 worldPos)
     {
-        if (self.ghostRoom.name != testRoom.name) {
+        if (self.ghostRoom.name != testRoom.name)
+        {
             return 0f;
         }
         return orig(self, testRoom, worldPos);
@@ -224,7 +243,8 @@ sealed class MapExporter : BaseUnityPlugin
     private void VoidSpawnGraphics_DrawSprites(On.VoidSpawnGraphics.orig_DrawSprites orig, VoidSpawnGraphics self, RoomCamera.SpriteLeaser sLeaser, RoomCamera rCam, float timeStacker, Vector2 camPos)
     {
         //youre code bad
-        for (int i = 0; i < sLeaser.sprites.Length; i++) {
+        for (int i = 0; i < sLeaser.sprites.Length; i++)
+        {
             sLeaser.sprites[i].isVisible = false;
         }
     }
@@ -232,21 +252,48 @@ sealed class MapExporter : BaseUnityPlugin
     // effects blacklist
     private void Room_Loaded(On.Room.orig_Loaded orig, Room self)
     {
-        for (int i = self.roomSettings.effects.Count - 1; i >= 0; i--) {
+        for (int i = self.roomSettings.effects.Count - 1; i >= 0; i--)
+        {
             if (self.roomSettings.effects[i].type == RoomSettings.RoomEffect.Type.VoidSea) self.roomSettings.effects.RemoveAt(i); // breaks with no player
             else if (self.roomSettings.effects[i].type.ToString() == "CGCameraZoom") self.roomSettings.effects.RemoveAt(i); // bad for screenies
             else if (((int)self.roomSettings.effects[i].type) >= 27 && ((int)self.roomSettings.effects[i].type) <= 36) self.roomSettings.effects.RemoveAt(i); // insects bad for screenies
         }
-        foreach (var item in self.roomSettings.placedObjects) {
+        // Tryna get everything to present nicely on screenshot, and also maybe fix that bubble grass index out of array error for inv/ss
+        foreach (var item in self.roomSettings.placedObjects)
+        {
             if (item.type == PlacedObject.Type.InsectGroup) item.active = false;
+            // for inv ss
+            //if (item.type == PlacedObject.Type.BubbleGrass) item.active = false;
             if (item.type == PlacedObject.Type.FlyLure
-                || item.type == PlacedObject.Type.JellyFish) self.waitToEnterAfterFullyLoaded = Mathf.Max(self.waitToEnterAfterFullyLoaded, 20);
-
+                || item.type == PlacedObject.Type.JellyFish
+                || item.type == PlacedObject.Type.BubbleGrass
+                || item.type == PlacedObject.Type.TempleGuard
+                || item.type == PlacedObject.Type.StuckDaddy
+                || item.type == PlacedObject.Type.Hazer
+                || item.type == PlacedObject.Type.Vine
+                || item.type == PlacedObject.Type.ScavengerOutpost
+                || item.type == PlacedObject.Type.DeadTokenStalk
+                || item.type == PlacedObject.Type.SeedCob
+                || item.type == PlacedObject.Type.DeadSeedCob
+                || item.type == PlacedObject.Type.DeadHazer
+                || item.type == PlacedObject.Type.HangingPearls
+                || item.type == PlacedObject.Type.VultureGrub
+                || item.type == PlacedObject.Type.HangingPearls
+                || item.type == PlacedObject.Type.DeadVultureGrub
+                || item.type == MoreSlugcatsEnums.PlacedObjectType.BigJellyFish
+                || item.type == MoreSlugcatsEnums.PlacedObjectType.GlowWeed
+                || item.type == MoreSlugcatsEnums.PlacedObjectType.GooieDuck
+                || item.type == MoreSlugcatsEnums.PlacedObjectType.RotFlyPaper
+                || item.type == MoreSlugcatsEnums.PlacedObjectType.DevToken
+                || item.type == MoreSlugcatsEnums.PlacedObjectType.LillyPuck
+                || item.type == MoreSlugcatsEnums.PlacedObjectType.Stowaway
+                || item.type == MoreSlugcatsEnums.PlacedObjectType.MoonCloak
+                || item.type == MoreSlugcatsEnums.PlacedObjectType.HRGuard) self.waitToEnterAfterFullyLoaded = Mathf.Max(self.waitToEnterAfterFullyLoaded, 20);
         }
         orig(self);
     }
 
-    // no orcacles
+    // no oracles
     private void Room_ReadyForAI(On.Room.orig_ReadyForAI orig, Room self)
     {
         string oldname = self.abstractRoom.name;
@@ -265,17 +312,21 @@ sealed class MapExporter : BaseUnityPlugin
     {
         orig(self, game, playerCharacter, singleRoomWorld, worldName, region, setupValues);
 
-        for (int i = self.lines.Count - 1; i > 0; i--) {
+        for (int i = self.lines.Count - 1; i > 0; i--)
+        {
             string[] split1 = Regex.Split(self.lines[i], " : ");
-            if (split1.Length != 3 || split1[1] != "EXCLUSIVEROOM") {
+            if (split1.Length != 3 || split1[1] != "EXCLUSIVEROOM")
+            {
                 continue;
             }
             string[] split2 = Regex.Split(self.lines[i - 1], " : ");
-            if (split2.Length != 3 || split2[1] != "EXCLUSIVEROOM") {
+            if (split2.Length != 3 || split2[1] != "EXCLUSIVEROOM")
+            {
                 continue;
             }
             // If rooms match on both EXCLUSIVEROOM entries, but not characters, merge the characters.
-            if (split1[0] != split2[0] && split1[2] == split2[2]) {
+            if (split1[0] != split2[0] && split1[2] == split2[2])
+            {
                 string newLine = $"{split1[0]},{split2[0]} : EXCLUSIVEROOM : {split1[2]}";
 
                 self.lines[i - 1] = newLine;
@@ -298,7 +349,8 @@ sealed class MapExporter : BaseUnityPlugin
         orig(self, manager);
 
         // No safari overseers
-        if (self.cameras[0].followAbstractCreature != null) {
+        if (self.cameras[0].followAbstractCreature != null)
+        {
             self.cameras[0].followAbstractCreature.Room.RemoveEntity(self.cameras[0].followAbstractCreature);
             self.cameras[0].followAbstractCreature.realizedObject?.Destroy();
             self.cameras[0].followAbstractCreature = null;
@@ -309,6 +361,21 @@ sealed class MapExporter : BaseUnityPlugin
         // misc wtf fixes
         self.GetStorySession.saveState.theGlow = false;
         self.rainWorld.setup.playerGlowing = false;
+
+        // Begone 
+        self.GetStorySession.saveState.deathPersistentSaveData.theMark = false;
+        self.GetStorySession.saveState.deathPersistentSaveData.redsDeath = false;
+        self.GetStorySession.saveState.deathPersistentSaveData.reinforcedKarma = false;
+        // self.GetStorySession.saveState.deathPersistentSaveData.altEnding = false;
+        self.GetStorySession.saveState.hasRobo = false;
+        self.GetStorySession.saveState.redExtraCycles = false;
+        self.GetStorySession.saveState.deathPersistentSaveData.ascended = false;
+
+        // plus more
+        self.GetStorySession.saveState.deathPersistentSaveData.PoleMimicEverSeen = true;
+        self.GetStorySession.saveState.deathPersistentSaveData.SMEatTutorial = true;
+        self.GetStorySession.saveState.deathPersistentSaveData.ArtificerMaulTutorial = true;
+        self.GetStorySession.saveState.deathPersistentSaveData.GateStandTutorial = true;
 
         // no tutorials
         self.GetStorySession.saveState.deathPersistentSaveData.KarmaFlowerMessage = true;
@@ -358,11 +425,13 @@ sealed class MapExporter : BaseUnityPlugin
 
     private static int ScugPriority(string slugcat)
     {
-        return slugcat switch {
+        return slugcat switch
+        {
             "white" => 10,      // do White first, they have the most generic regions
             "artificer" => 9,   // do Artificer next, they have Metropolis, Waterfront Facility, and past-GW
             "saint" => 8,       // do Saint next for Undergrowth and Silent Construct
             "rivulet" => 7,     // do Rivulet for The Rot
+            "inv" => 6,         // just cause
             _ => 0              // everyone else has a mix of duplicate rooms
         };
     }
@@ -384,8 +453,10 @@ sealed class MapExporter : BaseUnityPlugin
 
         SlugcatFile slugcatsJson = new();
 
-        if (captureSpecific?.Length > 0) {
-            foreach (var capture in captureSpecific) {
+        if (CaptureSpecific?.Length > 0)
+        {
+            foreach (var capture in CaptureSpecific)
+            {
                 SlugcatStats.Name slugcat = new(capture.Split(';')[0]);
 
                 game.GetStorySession.saveStateNumber = slugcat;
@@ -397,12 +468,16 @@ sealed class MapExporter : BaseUnityPlugin
                     yield return step;
             }
         }
-        else {
+        else
+        {
             // Iterate over each region on each slugcat
-            foreach (string slugcatName in SlugcatStats.Name.values.entries.OrderByDescending(ScugPriority)) {
+            foreach (string slugcatName in SlugcatStats.Name.values.entries.OrderByDescending(ScugPriority))
+            {
                 SlugcatStats.Name slugcat = new(slugcatName);
+                // Skips over Night, Slugpup, JollyPlayer1, JollyPlayer2, JollyPlayer3, JollyPlayer4
 
-                if (SlugcatStats.HiddenOrUnplayableSlugcat(slugcat)) {
+                if (slugcat.ToString() != "Inv" && SlugcatStats.HiddenOrUnplayableSlugcat(slugcat))
+                {
                     continue;
                 }
 
@@ -411,7 +486,8 @@ sealed class MapExporter : BaseUnityPlugin
 
                 slugcatsJson.AddCurrentSlugcat(game);
 
-                foreach (var region in SlugcatStats.getSlugcatStoryRegions(slugcat).Concat(SlugcatStats.getSlugcatOptionalRegions(slugcat))) {
+                foreach (var region in SlugcatStats.getSlugcatStoryRegions(slugcat).Concat(SlugcatStats.getSlugcatOptionalRegions(slugcat)))
+                {
                     foreach (var step in CaptureRegion(game, region))
                         yield return step;
                 }
@@ -445,11 +521,14 @@ sealed class MapExporter : BaseUnityPlugin
         // Don't image offscreen dens
         rooms.RemoveAll(r => r.offScreenDen);
 
-        if (ReusedRooms.SlugcatRoomsToUse(slugcat.value, game.world, rooms) is string copyRooms) {
+        if (ReusedRooms.SlugcatRoomsToUse(slugcat.value, game.world, rooms) is string copyRooms)
+        {
             mapContent.copyRooms = copyRooms;
         }
-        else {
-            foreach (var room in rooms) {
+        else
+        {
+            foreach (var room in rooms)
+            {
                 foreach (var step in CaptureRoom(room, mapContent))
                     yield return step;
             }
@@ -469,19 +548,24 @@ sealed class MapExporter : BaseUnityPlugin
         Random.InitState(0);
         game.overWorld.activeWorld.ActivateRoom(room);
         // load room until it is loaded
-        if (game.overWorld.activeWorld.loadingRooms.Count > 0 && game.overWorld.activeWorld.loadingRooms[0].room == room.realizedRoom) {
+        if (game.overWorld.activeWorld.loadingRooms.Count > 0 && game.overWorld.activeWorld.loadingRooms[0].room == room.realizedRoom)
+        {
             RoomPreparer loading = game.overWorld.activeWorld.loadingRooms[0];
-            while (!loading.done) {
+            while (!loading.done)
+            {
                 loading.Update();
             }
         }
-        while (!(room.realizedRoom.loadingProgress >= 3 && room.realizedRoom.waitToEnterAfterFullyLoaded < 1)) {
+        while (!(room.realizedRoom.loadingProgress >= 3 && room.realizedRoom.waitToEnterAfterFullyLoaded < 1))
+        {
             room.realizedRoom.Update();
         }
 
-        if (blacklistedCams.TryGetValue(room.name, out int[] cams)) {
+        if (CameraBlacklist.TryGetValue(room.name, out int[] cams))
+        {
             var newpos = room.realizedRoom.cameraPositions.ToList();
-            for (int i = cams.Length - 1; i >= 0; i--) {
+            for (int i = cams.Length - 1; i >= 0; i--)
+            {
                 newpos.RemoveAt(cams[i] - 1);
             }
             room.realizedRoom.cameraPositions = newpos.ToArray();
@@ -498,7 +582,8 @@ sealed class MapExporter : BaseUnityPlugin
 
         regionContent.UpdateRoom(room.realizedRoom);
 
-        for (int i = 0; i < room.realizedRoom.cameraPositions.Length; i++) {
+        for (int i = 0; i < room.realizedRoom.cameraPositions.Length; i++)
+        {
             // load screen
             Random.InitState(room.name.GetHashCode()); // allow for deterministic random numbers, to make rain look less garbage
             game.cameras[0].MoveCamera(i);
@@ -508,10 +593,12 @@ sealed class MapExporter : BaseUnityPlugin
             yield return null; // one extra frame maybe
                                // fire!
 
-            if (screenshots) {
+            if (Screenshots)
+            {
                 string filename = PathOfScreenshot(game.StoryCharacter.value, room.world.name, room.name, i);
-
-                if (!File.Exists(filename)) {
+                // nah always overwrite, cuz why not?
+                if (!File.Exists(filename))
+                {
                     ScreenCapture.CaptureScreenshot(filename);
                 }
             }
