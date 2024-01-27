@@ -454,6 +454,12 @@ def do_slugcat(slugcat: str):
                         if len(slugcats_with_creature) > 0 and slugcat.lower() not in slugcats_with_creature:
                             continue
                         spawnentry = spawnentry[spawnentry.index(")")+1:]
+                    
+
+                    # homemade patch to support CRS conditionals, woohoo
+                    if spawnentry.startswith("{"):
+                        # skip until the end
+                        spawnentry = spawnentry[spawnentry.index("}")+1:]
 
                     arr = spawnentry.split(" : ")
                     if arr[0] == "LINEAGE":
@@ -504,6 +510,9 @@ def do_slugcat(slugcat: str):
                             if room_name  != "OFFSCREEN" and room_name not in rooms:
                                 # creature is in a room that doesn't exist for this region
                                 continue
+                            if room_name  != "OFFSCREEN" and not den_index.isdigit():
+                                print("faulty spawn! den index missing in room name: " + room_name + " : " + creature_desc)
+                                continue
                             if room_name  != "OFFSCREEN" and len(rooms[room_name]["nodes"]) <= int(den_index):
                                 print("faulty spawn! den index over room nodes: " + room_name + " : " + creature_desc)
                                 continue
@@ -538,6 +547,9 @@ def do_slugcat(slugcat: str):
                 ## process dens into features
                 for _,den in dens.items():
                     if den["room"] == "OFFSCREEN":
+                        if not 'offscreen' in regiondata:
+                            print("notice: created OffScreenDen_" + entry.name.upper())
+                            regiondata['offscreen'] = {'roomName': 'OffScreenDen_' + entry.name.upper(), 'canPos': [0, 0], 'canLayer': 1, 'devPos': [0, 0], 'subregion': '', 'cameras': None, 'nodes': None, 'size': None, 'tiles': None, 'roomcoords': [0, 0], 'camcoords': None}
                         room = regiondata['offscreen']
                         dencoords = room['roomcoords'] + ofscreensize/2
                     else:
