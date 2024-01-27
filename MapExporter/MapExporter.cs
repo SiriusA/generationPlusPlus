@@ -61,56 +61,12 @@ sealed class MapExporter : BaseUnityPlugin
         try
         {
             Logger = base.Logger;
-            //On.RainWorld.Start += RainWorld_Start; // "FUCK compatibility just run my hooks" - love you too henpemaz
-            //On.RainWorld.PostModsInit += RainWorld_PostModsInit;
-                Logger.LogDebug("Started start thingy");
-                On.Json.Serializer.SerializeValue += Serializer_SerializeValue;
-                On.RainWorld.LoadSetupValues += RainWorld_LoadSetupValues;
-                On.RainWorld.Update += RainWorld_Update;
-                On.World.SpawnGhost += World_SpawnGhost;
-                On.GhostWorldPresence.SpawnGhost += GhostWorldPresence_SpawnGhost;
-                On.GhostWorldPresence.GhostMode_AbstractRoom_Vector2 += GhostWorldPresence_GhostMode_AbstractRoom_Vector2;
-                On.Ghost.Update += Ghost_Update;
-                On.RainWorldGame.ctor += RainWorldGame_ctor;
-                On.RainWorldGame.Update += RainWorldGame_Update;
-                On.RainWorldGame.RawUpdate += RainWorldGame_RawUpdate;
-                new Hook(typeof(RainWorldGame).GetProperty("TimeSpeedFac").GetGetMethod(), typeof(MapExporter).GetMethod("RainWorldGame_ZeroProperty"), this);
-                new Hook(typeof(RainWorldGame).GetProperty("InitialBlackSeconds").GetGetMethod(), typeof(MapExporter).GetMethod("RainWorldGame_ZeroProperty"), this);
-                new Hook(typeof(RainWorldGame).GetProperty("FadeInTime").GetGetMethod(), typeof(MapExporter).GetMethod("RainWorldGame_ZeroProperty"), this);
-                On.OverWorld.WorldLoaded += OverWorld_WorldLoaded;
-                On.Room.ReadyForAI += Room_ReadyForAI;
-                On.Room.Loaded += Room_Loaded;
-                On.Room.ScreenMovement += Room_ScreenMovement;
-                On.RoomCamera.DrawUpdate += RoomCamera_DrawUpdate;
-                On.VoidSpawnGraphics.DrawSprites += VoidSpawnGraphics_DrawSprites;
-                On.AntiGravity.BrokenAntiGravity.ctor += BrokenAntiGravity_ctor;
-                On.GateKarmaGlyph.DrawSprites += GateKarmaGlyph_DrawSprites;
-                On.WorldLoader.ctor_RainWorldGame_Name_bool_string_Region_SetupValues += WorldLoader_ctor_RainWorldGame_Name_bool_string_Region_SetupValues;
-                Logger.LogDebug("Finished start thingy");
+            On.RainWorld.Start += RainWorld_Start; // "FUCK compatibility just run my hooks" - love you too henpemaz
         }
         catch (Exception ex)
         {
             Debug.LogException(ex);
         }
-    }
-
-    private bool IsInit = false;
-    private void RainWorld_PostModsInit(On.RainWorld.orig_PostModsInit orig, RainWorld self)
-    {
-        if (!IsInit)
-        {
-            IsInit = true;
-            try
-            {
-            }
-            catch (Exception e)
-            {
-                Logger.LogDebug("Caught start thingy");
-                Debug.LogException(e);
-            }
-        }
-
-        orig(self);
     }
 
     private void RainWorld_Start(On.RainWorld.orig_Start orig, RainWorld self)
@@ -140,6 +96,7 @@ sealed class MapExporter : BaseUnityPlugin
             On.AntiGravity.BrokenAntiGravity.ctor += BrokenAntiGravity_ctor;
             On.GateKarmaGlyph.DrawSprites += GateKarmaGlyph_DrawSprites;
             On.WorldLoader.ctor_RainWorldGame_Name_bool_string_Region_SetupValues += WorldLoader_ctor_RainWorldGame_Name_bool_string_Region_SetupValues;
+            On.SoundLoader.ReleaseAllUnityAudio += SoundLoader_ReleaseAllUnityAudio;
             Logger.LogDebug("Finished start thingy");
         }
         catch (Exception e)
@@ -148,6 +105,22 @@ sealed class MapExporter : BaseUnityPlugin
             Debug.LogException(e);
         }
 
+        orig(self);
+    }
+
+    private void SoundLoader_ReleaseAllUnityAudio(On.SoundLoader.orig_ReleaseAllUnityAudio orig, SoundLoader self)
+    {
+        if (self.assetBundlesLoaded)
+        {
+            for (int i = 0; i < self.unityAudio.Length; i++)
+            {
+                if (self.unityAudio[i] == null || self.unityAudioCached[i]) continue;
+                for (int j = 0; j < self.unityAudio[i].Length; j++)
+                {
+                    Destroy(self.unityAudio[i][j]);
+                }
+            }
+        }
         orig(self);
     }
 
@@ -476,8 +449,10 @@ sealed class MapExporter : BaseUnityPlugin
         Application.Quit();
     }
 
+    bool needsToUpdate = true;
     private System.Collections.IEnumerable CaptureRegion(RainWorldGame game, string region)
     {
+        needsToUpdate = true;
         SlugcatStats.Name slugcat = game.StoryCharacter;
 
         // load region
@@ -508,8 +483,6 @@ sealed class MapExporter : BaseUnityPlugin
         }
 
         File.WriteAllText(PathOfMetadata(slugcat.value, region), Json.Serialize(mapContent));
-        AssetManager.HardCleanFutileAssets();
-        GC.Collect();
 
         Logger.LogDebug("capture task done with " + region);
     }
@@ -520,6 +493,18 @@ sealed class MapExporter : BaseUnityPlugin
 
         // load room
         game.overWorld.activeWorld.loadingRooms.Clear();
+        if (needsToUpdate)
+        {
+            needsToUpdate = false;
+            room.world.game.soundLoader.ReleaseAllUnityAudio();
+            var maptexs = room.world.game.rainWorld.progression.mapDiscoveryTextures;
+            foreach (var texture in maptexs.Values)
+            {
+                Destroy(texture);
+            }
+            maptexs.Clear();
+            AssetManager.HardCleanFutileAssets();
+        }
         Random.InitState(0);
         game.overWorld.activeWorld.ActivateRoom(room);
         // load room until it is loaded
