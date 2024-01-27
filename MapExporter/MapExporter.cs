@@ -15,7 +15,7 @@ using System.Text.RegularExpressions;
 
 namespace MapExporter;
 
-[BepInPlugin("io.github.henpemaz-dual", "Map Exporter", "1.0.0")]
+[BepInPlugin("io.github.henpemaz-dual-alduris", "Map Exporter", "1.0.0")]
 sealed class MapExporter : BaseUnityPlugin
 {
     // Config
