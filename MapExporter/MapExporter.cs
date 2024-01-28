@@ -37,6 +37,15 @@ sealed class MapExporter : BaseUnityPlugin
 
     public static new ManualLogSource Logger;
 
+    public static List<string> AllScugsRegionOverrides = new()
+    {
+        "HC"
+    };
+    /*public static readonly Dictionary<SlugcatStats.Name, List<string>> RegionOverrides = new()
+    {
+        //
+    };*/
+
     public static bool NotHiddenRoom(AbstractRoom room) => !HiddenRoom(room);
     public static bool HiddenRoom(AbstractRoom room)
     {
@@ -408,9 +417,20 @@ sealed class MapExporter : BaseUnityPlugin
                     continue;
                 }
 
-                foreach (string region in SlugcatStats.getSlugcatStoryRegions(slugcat).Concat(SlugcatStats.getSlugcatOptionalRegions(slugcat)))
+                foreach (string region in SlugcatStats.getSlugcatStoryRegions(slugcat))
                 {
                     captureSpecific.Enqueue((slugcatName, region));
+                }
+                foreach (string region in SlugcatStats.getSlugcatOptionalRegions(slugcat))
+                {
+                    captureSpecific.Enqueue((slugcatName, region));
+                }
+
+                foreach (string region in AllScugsRegionOverrides)
+                {
+                    // Make sure region exists
+                    if (Region.GetFullRegionOrder().Contains(region))
+                        captureSpecific.Enqueue((slugcatName, region));
                 }
             }
         }
