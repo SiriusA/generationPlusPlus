@@ -118,6 +118,9 @@ sealed class MapExporter : BaseUnityPlugin
             On.AntiGravity.BrokenAntiGravity.ctor += BrokenAntiGravity_ctor;
             On.GateKarmaGlyph.DrawSprites += GateKarmaGlyph_DrawSprites;
             On.WorldLoader.ctor_RainWorldGame_Name_bool_string_Region_SetupValues += WorldLoader_ctor_RainWorldGame_Name_bool_string_Region_SetupValues;
+            On.ScavengersWorldAI.WorldFloodFiller.Update += WorldFloodFiller_Update;
+            On.CustomDecal.LoadFile += CustomDecal_LoadFile;
+            On.CustomDecal.InitiateSprites += CustomDecal_InitiateSprites;
             Logger.LogDebug("Finished start thingy");
         }
         catch (Exception e)
@@ -127,6 +130,37 @@ sealed class MapExporter : BaseUnityPlugin
         }
 
         orig(self);
+    }
+
+
+    // prevents a crash when a decal isn't loaded by pretending it doesn't exist and hiding it
+    private void CustomDecal_LoadFile(On.CustomDecal.orig_LoadFile orig, CustomDecal self, string fileName)
+    {
+        try
+        {
+            orig(self, fileName);
+        }
+        catch (FileLoadException e)
+        {
+            Logger.LogError(e);
+            (self.placedObject.data as PlacedObject.CustomDecalData).imageName = "PH";
+            orig(self, "PH");
+            // PH is the default image that you see when you place a custom decal into the world. It's just a white box with a thick red X and border in it.
+        }
+    }
+    private void CustomDecal_InitiateSprites(On.CustomDecal.orig_InitiateSprites orig, CustomDecal self, RoomCamera.SpriteLeaser sLeaser, RoomCamera rCam)
+    {
+        orig(self, sLeaser, rCam);
+        if ((self.placedObject.data as PlacedObject.CustomDecalData).imageName == "PH")
+        {
+            sLeaser.sprites[0].isVisible = false;
+        }
+    }
+
+    // prevents a crash with broken connections (scavengers don't need their ai in this)
+    private void WorldFloodFiller_Update(On.ScavengersWorldAI.WorldFloodFiller.orig_Update orig, ScavengersWorldAI.WorldFloodFiller self)
+    {
+        self.finished = true;
     }
 
     private void Serializer_SerializeValue(On.Json.Serializer.orig_SerializeValue orig, Json.Serializer self, object value)
