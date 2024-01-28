@@ -1,14 +1,10 @@
-from asyncio.windows_events import NULL
 from copy import copy
 import os
 import json, geojson
 import statistics
 import colorsys
-from geojson import base
 import numpy as np
 from PIL import Image
-import distutils.core
-import math
 
 # making python more pythonic smh
 def readfile(filename):
@@ -31,80 +27,37 @@ ofscreensize = np.array([1200,400])
 
 four_directions = [np.array([-1,0]),np.array([0,-1]),np.array([1,0]),np.array([0,1])]
 center_of_tile = np.array([10,10])
-# File Paths
+
 screenshots_root = "./py-input"
 output_folder = "./py-output"
-streaming_assets = "D:\SteamLibrary\steamapps\common\Rain World\RainWorld_Data\StreamingAssets"
-mergedmodsprefix = streaming_assets + "\mergedmods\world"
-mscprefix = streaming_assets + "\mods\moreslugcats\world"
-vanillaprefix = streaming_assets + "\world"
 
 optimize_geometry = True
 skip_existing_tiles = True
 only_slugcat = None
 only_region = None
 
-# Export
 task_export_tiles = True
 task_export_features = True
 task_export_room_features = True
 task_export_connection_features = True
 task_export_geo_features = True
-task_export_creatures_features = True
-task_export_placedobject_features = True
-task_export_tilenode_features = True
-task_export_roomtag_features = True
-task_export_batmigrationblockages_features = True
-
-# External data
-config = {
-    "camfullsize": camfullsize,
-    "camsize": camsize,
-    "camoffset": camoffset,
-    "ofscreensize": ofscreensize,
-    "four_directions": four_directions,
-    "center_of_tile": center_of_tile,
-    "screenshots_root": screenshots_root,
-    "output_folder": output_folder,
-    "streaming_assets": streaming_assets,
-    "mergedmodsprefix": mergedmodsprefix,
-    "mscprefix": mscprefix,
-    "vanillaprefix": vanillaprefix,
-    "optimize_geometry": optimize_geometry,
-    "skip_existing_tiles": skip_existing_tiles,
-    "only_slugcat": only_slugcat,
-    "only_region": only_region,
-    "task_export_tiles": task_export_tiles,
-    "task_export_features": task_export_features,
-    "task_export_room_features": task_export_room_features,
-    "task_export_connection_features": task_export_connection_features,
-    "task_export_geo_features": task_export_geo_features,
-    "task_export_creatures_features": task_export_creatures_features,
-    "task_export_placedobject_features": task_export_placedobject_features,
-    "task_export_roomtag_features": task_export_roomtag_features,
-    "task_export_tilenode_features": task_export_tilenode_features,
-    "task_export_batmigrationblockages_features": task_export_batmigrationblockages_features
-}
-
-config = readfile("generationPlus.config")
-
-#print(config)
+task_export_spawn_features = True
 
 def do_slugcat(slugcat: str):
     if only_slugcat is not None and only_slugcat != slugcat:
         return
 
     print("Found slugcat regions: " + slugcat)
-    # cycle through each region for the corresponding slugcats
+        
     for entry in os.scandir(os.path.join(screenshots_root, slugcat)):
         if not entry.is_dir() or len(entry.name) != 2 or (only_region is not None and only_region != entry.name):
             continue
-        # record the region acronyms
+
         print("Found region: " + entry.name)
         with open(os.path.join(entry.path, "metadata.json")) as metadata:
             regiondata = json.load(metadata)
         assert entry.name == str(regiondata['acronym']).lower()
-        # get region rooms
+
         copyingRooms = 'copyRooms' in regiondata
         if copyingRooms:
             with open(os.path.join(screenshots_root, regiondata['copyRooms'], entry.name, "metadata.json")) as metadata:
@@ -238,7 +191,7 @@ def do_slugcat(slugcat: str):
 
             bh,bs,bv = colorsys.rgb_to_hsv(bg_col[0]/255.0,bg_col[1]/255.0,bg_col[2]/255.0)
             fh,fs,fv = colorsys.rgb_to_hsv(fg_col[0]/255.0,fg_col[1]/255.0,fg_col[2]/255.0)
-            # find good contrasting color
+            # find good contrastign color
             if abs(bh - fh) < 0.5:
                 if bh < fh:
                     bh += 1
@@ -313,7 +266,6 @@ def do_slugcat(slugcat: str):
 
                         }))
                     done.append((conn["roomA"],conn["roomB"]))
-                ## Need to add section for conditional links
         
             ## Geometry
             if task_export_geo_features and not copyingRooms:
@@ -478,19 +430,14 @@ def do_slugcat(slugcat: str):
                             "room":roomname
                         }))
         
-            ## Creatures
-            if task_export_creatures_features:
-                creatures_features = []
-                features["creatures_features"] = creatures_features
-                # grouping together all lizards, and then centipedes pole mimics, for the corresponding attributes mean and number
-                MeanWhitelist = ("Pink","PinkLizard","Green","GreenLizard","Blue","BlueLizard","Yellow","YellowLizard","White","WhiteLizard","Black","BlackLizard","Cyan","CyanLizard","Red","RedLizard","Caramel","SpitLizard","Strawberry","ZoopLizard", "Eel","EelLizard","Train","TrainLizard")
-                NumberWhitelist = ("PoleMimic","Mimic","SmallCentipede","Centipede","Centi","Cent","Red Centipede","RedCentipede","RedCenti","Red Centi","AquaCenti", "Aqua Centi", "AquaCentipede", "Aqua Centipede", "Aquapede")
+            ## Spawns
+            if task_export_spawn_features:
+                spawn_features = []
+                features["spawn_features"] = spawn_features
                 print("creatures task!")
                 # read spawns, group spawns into dens (dens have a position)
                 dens = {}
-                # excludes mean, number, seed, and amount attributes, since those have special handling
-                creature_attributes = ("{PreCycle}","{Ignorecycle}","{Night}","{TentacleImmune}","{Lavasafe}","{Voidsea}","{Winter}","{AlternateForm}")
-                for spawnentry in regiondata["creatures"]:
+                for spawnentry in regiondata["spawns"]:
                     spawnentry = spawnentry.strip()
                     if not spawnentry:
                         continue
@@ -507,14 +454,14 @@ def do_slugcat(slugcat: str):
                         if len(slugcats_with_creature) > 0 and slugcat.lower() not in slugcats_with_creature:
                             continue
                         spawnentry = spawnentry[spawnentry.index(")")+1:]
+                    
 
-                    # ignore CRS conditionals, woohoo
+                    # homemade patch to support CRS conditionals, woohoo
                     if spawnentry.startswith("{"):
                         # skip until the end
                         spawnentry = spawnentry[spawnentry.index("}")+1:]
 
                     arr = spawnentry.split(" : ")
-                    ## Lineage-Creatures
                     if arr[0] == "LINEAGE":
                         if len(arr) < 3:
                             print("faulty spawn! missing stuff: " + spawnentry)
@@ -538,68 +485,33 @@ def do_slugcat(slugcat: str):
                         spawn["is_lineage"] = True
                         creature_arr = arr[3].split(", ")
                         spawn["lineage"] = [creature.split("-")[0] for creature in creature_arr]
-                        # Lineage Creature attributes
+                        # TODO read creature attributes
                         spawn["lineage_probs"] = [creature.split("-")[-1] for creature in creature_arr]
-                        spawn["attributes"] = []
-                        print("creature_arr: " + str(creature_arr))
-                        for creature in creature_arr:
-                            lineageentries = creature.split("-")
-                            if len(lineageentries) == 2:
-                                spawn["attributes"].append(None)
-                                print("No Attributes for " + creature)
-                            if len(lineageentries) > 2:
-                                print(creature + " Has Attributes")
-                                
-                                for creature_attr in lineageentries:
-                                    # PreCycle, Ignorecycle, Night, TentacleImmune, Lavasafe, Voidsea, Winter, and AlternateForm
-                                    for attribute in creature_attributes:
-                                        if attribute in arr[3]:
-                                            attributekey = attribute.strip("{}").lower()
-                                            attribute = {attributekey:True}
-                                            spawn["attributes"].append(attribute)
-                                    # Mean
-                                    if creature_attr.startswith("{Mean:"):
-                                        Mean = creature_attr.strip("{Mean:}")
-                                        for Lizard in MeanWhitelist:
-                                            if lineageentries[0] == Lizard:
-                                                spawn["mean"] = Mean
-                                                mean = {"mean":Mean}
-                                                spawn["attributes"].append(mean)
-                                                print("Mean: " + Mean)
-                                    # Seed
-                                    if creature_attr.startswith("{Seed:"):
-                                        Seed = creature_attr.strip("{Seed:}")
-                                        seed = {"seed":Seed}
-                                        spawn["attributes"].append(seed)
-                                        print("Seed: " + Seed)
-                                    # Number
-                                    if creature_attr.startswith("{") and not creature_attr[0]:
-                                        Number = creature_attr.strip("{}")
-                                        for Length in NumberWhitelist:
-                                            if lineageentries[0] == Length:
-                                                number = {"number":Number}
-                                                spawn["attributes"].append(number)
-                                                print("Number: " + number)
-
-                        print("Creature Attributes: " + str(spawn["attributes"]))
+                        spawn["creature"] = spawn["lineage"][0]
+                        spawn["amount"] = 1
+                        spawn["pre_cycle"] = "{PreCycle}" in arr[3]
+                        spawn["night"] = "{Night}" in arr[3]
 
                         denkey = arr[1]+ ":" +arr[2] # room:den
                         if denkey in dens:
-                            dens[denkey]["creatures"].append(spawn)
+                            dens[denkey]["spawns"].append(spawn)
                         else:
-                            dens[denkey] = {"room":arr[1],"den":int(arr[2]),"creatures":[spawn]}
-                    ## Non-Lineage Creatures
+                            dens[denkey] = {"room":arr[1],"den":int(arr[2]),"spawns":[spawn]}
                     else:
                         creature_arr = arr[1].split(", ")
                         room_name = arr[0]
                         for creature_desc in creature_arr:
                             spawn = {}
                             spawn["is_lineage"] = False
-
+                            spawn["pre_cycle"] = False
+                            spawn["night"] = False
                             den_index,spawn["creature"], *attr = creature_desc.split("-")
 
                             if room_name  != "OFFSCREEN" and room_name not in rooms:
                                 # creature is in a room that doesn't exist for this region
+                                continue
+                            if room_name  != "OFFSCREEN" and not den_index.isdigit():
+                                print("faulty spawn! den index missing in room name: " + room_name + " : " + creature_desc)
                                 continue
                             if room_name  != "OFFSCREEN" and len(rooms[room_name]["nodes"]) <= int(den_index):
                                 print("faulty spawn! den index over room nodes: " + room_name + " : " + creature_desc)
@@ -610,62 +522,31 @@ def do_slugcat(slugcat: str):
                                 if tiles[node[1]][node[0]][2] != 3:
                                     print("faulty spawn! not a den: " + spawnentry)
                                     continue
-
-                            # Always implicitly assume a creature amount of 1 when not explicitly defined
+                        
                             spawn["amount"] = 1
                             if attr:
-                                print("Count: " + str(len(attr)) + ", Attributes: " + str(attr))
-                                attrindex = 0
-                                while attrindex < len(attr):
-                                    # Read creature attributes
-                                    if not attr[attrindex].startswith("{"):
-                                        try:
-                                            spawn["amount"] = int(attr[attrindex])
-                                        except:
-                                            print("amount not specified. first attribute is \"" + attr[attrindex] + "\" in \"" + room_name + " : " + creature_desc + "\"")
-                                            spawn["amount"] = 1
-                                    # PreCycle, Ignorecycle, Night, TentacleImmune, Lavasafe, Voidsea, Winter, and AlternateForm
-                                    for attribute in creature_attributes:
-                                        if attribute in attr:
-                                            attributekey = attribute.strip("{}").lower()
-                                            spawn[attributekey] = True
-                                    # Mean
-                                    if attr[attrindex].startswith("{Mean:") in attr:
-                                        Mean = attr[attrindex].strip("{Mean:}")
-                                        for Lizard in MeanWhitelist:
-                                            if spawn["creature"] == Lizard:
-                                                if "{Mean:" + Mean + "}" in attr:
-                                                    print("Mean: " + Mean)
-                                                    spawn["mean"] = Mean
-                                    # Seed
-                                    if attr[attrindex].startswith("{Seed:") in attr:
-                                        Seed = attr[attrindex].strip("{Seed:}")
-                                        if "{Seed:" + Seed + "}" in attr:
-                                            print("Seed: " + Seed)
-                                            spawn["seed"] = Seed
-                                    # Number
-                                    if attr[attrindex].startswith("{") in attr and not attr[attrindex].find("e") in attr:
-                                        number = attr[attrindex].strip("{}")
-                                        for Length in NumberWhitelist:
-                                            if spawn["creature"] == Length:
-                                                if "{" + number + "}" in attr:
-                                                    print("Number: " + number)
-                                                    spawn["number"] = number
-
-                                    attrindex += 1
+                                # TODO read creature attributes
+                                if not attr[-1].endswith("}"):
+                                    try:
+                                        spawn["amount"] = int(attr[-1])
+                                    except:
+                                        print("amount not specified. first attribute is \"" + attr[-1] + "\" in \"" + room_name + " : " + creature_desc + "\"")
+                                if "{PreCycle}" in attr:
+                                    spawn["pre_cycle"] = True
+                                if "{Night}" in attr:
+                                    spawn["night"] = True
 
                             if spawn["creature"] == "Spider 10": ## Bruh...
                                 print("faulty spawn! stupid spiders: " + room_name + " : " + creature_desc)
                                 continue ## Game doesnt parse it, so wont I
                             denkey = room_name+ ":" +den_index # room:den
                             if denkey in dens:
-                                dens[denkey]["creatures"].append(spawn)
+                                dens[denkey]["spawns"].append(spawn)
                             else:
-                                dens[denkey] = {"room":room_name,"den":int(den_index),"creatures":[spawn]}
+                                dens[denkey] = {"room":room_name,"den":int(den_index),"spawns":[spawn]}
                 ## process dens into features
                 for _,den in dens.items():
                     if den["room"] == "OFFSCREEN":
-                        # create a fake offscreen if one doesn't exist already for some reason
                         if not 'offscreen' in regiondata:
                             print("notice: created OffScreenDen_" + entry.name.upper())
                             regiondata['offscreen'] = {'roomName': 'OffScreenDen_' + entry.name.upper(), 'canPos': [0, 0], 'canLayer': 1, 'devPos': [0, 0], 'subregion': '', 'cameras': None, 'nodes': None, 'size': None, 'tiles': None, 'roomcoords': [0, 0], 'camcoords': None}
@@ -674,1406 +555,12 @@ def do_slugcat(slugcat: str):
                     else:
                         room = rooms[den["room"]]
                         dencoords = room['roomcoords'] + center_of_tile + 20* np.array(room['nodes'][den["den"]])
-                    creatures_features.append(geojson.Feature(
+                    spawn_features.append(geojson.Feature(
                         geometry=geojson.Point(np.array(dencoords).round().tolist()),
                         properties=den))
 
                 print("creatures task done!")
 
-            ## Placed Objects
-            if task_export_placedobject_features:
-                placedobject_features = []
-                features["placedobject_features"] = placedobject_features
-                worldName = regiondata["acronym"].lower()
-                mergedmodspath = ""
-                vanillapath = ""
-                mscpath = ""
-                ismergedmods = False
-                ismsc = False
-                isvanilla = False
-                worldsources = ([mscprefix,"MSC",ismsc,mscpath],[mergedmodsprefix,"MergedMods",ismergedmods,mergedmodspath],[vanillaprefix,"Vanilla",isvanilla,vanillapath])
-                steampipes = ("SteamPipe","WallSteamer")
-                quadobject = ("SpotLight","SuperJumpInstruction","DeepProcessing","CustomDecal","LightBeam")
-                gridrectobject = ("ZapCoil","SuperStructureFuses")
-                multiplayeritems = ("Rock","Spear","ExplosiveSpear","Bomb","SporePlant")
-                collecttokens = ("GoldToken","BlueToken","GreenToken","WhiteToken","RedToken","DevToken")
-                consumableobjects = ("SeedCob","DangleFruit","FlareBomb","PuffBall","WaterNut","Jellyfish","KarmaFlower","Mushroom",
-                                     "FirecrackerPlant","VultureGrub","DeadVultureGrub","Lantern","SlimeMold","FlyLure","SporePlant",
-                                     "NeedleEgg","BubbleGrass","Hazer","DeadHazer","Germinator","GooieDuck","LillyPuck","GlowWeed",
-                                     "MoonCloak","DandelionPeach","HRGuard","VoidSpawnEgg","DataPearl","UniqueDataPearl")
-                datapearl = ("DataPearl","UniqueDataPearl")
-                resizableobjects = ("CoralCircuit","CoralNeuron","CoralStem","CoralStemWithNeurons","Corruption","CorruptionTube",
-                                    "CorruptionDarkness","StuckDaddy","WallMycelia","ProjectedStars","CentipedeAttractor",
-                                    "DandelionPatch","NoSpearStickZone","LanternOnStick","TradeOutpost","ScavengerTreasury","ScavTradeInstruction",
-                                    "CosmeticSlimeMold","CosmeticSlimeMold2","PlayerPushback","DeadTokenStalk","NoLeviathanStrandingZone","Vine",
-                                    "NeuronSpawner","MSArteryPush","BigJellyFish","RotFlyPaper","KarmaShrine","Stowaway","ScavengerOutpost","InsectGroup","Filter")
-                print("starting placed object task!")
-                # for each room, resolve the exact file path so that it can be referenced and read later
-                mscregions = ("rm","vs","ms","lc","hr","cl","oe","ug","dm","lm")
-                for roomname, room in rooms.items():
-                    roomName = room['roomName'].lower()
-                    if roomName.startswith("offscreen"):
-                        #print(roomname + " is an offscreen room: Skipping!")
-                        continue
-
-                    def fileresolver(roomName):
-                        # check for gate rooms, not that they have shortcuts... :(
-                        if roomName.startswith("gate"):
-                            subfolder = "\gates\\"
-                            roomtype = "gate"
-                        else:
-                            subfolder = "\\" + worldName + "-rooms\\"
-                            roomtype = "room"
-
-                        # read and write which world sources a room is found in
-                        # need to cycle through gate and normal rooms
-                        # slugcat specific and general settings, skip this for vanilla and merged
-
-                        pathdata = worldsources
-                        for worldsource in pathdata:
-                            skipMergedMods = False
-                            skipVanilla = False
-                            for mscregion in mscregions:
-                                if worldName == mscregion and worldsource[1] == "MergedMods":
-                                    skipMergedMods = True
-                                if worldName == mscregion and worldsource[1] == "Vanilla":
-                                    skipVanilla = True
-
-                            if skipMergedMods and roomtype == "room":
-                                #print("skipping searching in MergedMods since the room is msc exclusive")
-                                continue
-                            if skipVanilla and roomtype == "room":
-                                #print("skipping searching in Vanilla since the room is msc exclusive")
-                                continue
-                            foundspecific = False
-                            specificsetting = ""
-                            specifictext = ""
-                            # when world source is msc, check for slugcat specific settings, and if they exist, use them instead
-                            if worldsource == pathdata[0]:
-                                specificsetting = "-" + slugcat
-                                specifictext = " for " + slugcat
-
-                                settingspath = worldsource[0] + subfolder + roomname + "_settings" + specificsetting + ".txt"
-                                if (os.path.exists(settingspath)):
-                                    #print("Found " + roomname + " settings" + specifictext + " in " + worldsource[1])
-                                    worldsource[2] = True
-                                    worldsource[3] = settingspath
-                                    foundspecific = True
-                                else:
-                                    worldsource[2] = False
-                                    worldsource[3] = ""
-                                    #print("No specific settings in " + worldsource[1])
-                            # Onto normal settings
-                            specificsetting = ""
-                            specifictext = ""
-                            settingspath = worldsource[0] + subfolder + roomname + "_settings" + specificsetting + ".txt"
-                            if (os.path.exists(settingspath)):
-                                #print("Found " + roomname + " settings" + specifictext + " in " + worldsource[1])
-                                worldsource[2] = True
-                                worldsource[3] = settingspath
-                            else:
-                                # only overwrite if specific doesn't exist
-                                if not foundspecific:
-                                    worldsource[2] = False
-                                    worldsource[3] = ""
-                                #print("No generic settings in " + worldsource[1])
-
-                        # MSC FIRST
-                        # NOT mergedmods first; will cause issues with duplicate gates in msc and vanilla, since their actual per region usage isn't explicit
-                        # about modifed and merged files; if a file exists in msc, it will only be a full file, either original or overwriting, whereas modified files
-                        # will be found in mergedmods as complete files, if not found in msc
-                        if not pathdata[0][2]:
-                            # MERGEDMODS SECOND
-                            # NOT msc second; will cause issues with duplicate gates in msc and vanilla, since their actual per region usage isn't explicit
-                            if not pathdata[1][2]:
-                                # vanilla is last priority
-                                if not pathdata[2][2]:
-                                    print(roomname + " is not in any world file")
-                                else:
-                                    resolvedpath = pathdata[2][3]
-                                    #print("this is vanilla")
-                            else:
-                                resolvedpath = pathdata[1][3]
-                                #print("this is mergedmods")
-                        else:
-                            resolvedpath = pathdata[0][3]
-                            #print("this is msc")
-
-                        # make sure that the resolved path and world source are the same
-                        if resolvedpath:
-                            print("Using " + resolvedpath)
-                            return resolvedpath
-
-                    path = fileresolver(roomName)
-
-                    # convert each settings file into a list of placed objects
-                    with open(path, 'r', encoding="utf-8") as f:
-                        readall = f.readlines()
-                        hasplacedobjects = False
-                        insideofplacedobjects = False
-                        for readline in readall:
-                            if (readline.startswith("PlacedObjects: ")):
-                                insideofplacedobjects = True;
-                                hasplacedobjects = True
-                                rawplacedobjects = readline
-                            elif (not readline.startswith("PlacedObjects: ")):
-                                insideofplacedobjects = False;
-                            elif (insideofplacedobjects):
-                                hasplacedobjects = True
-                                rawplacedobjects = readline
-                                
-                        if not hasplacedobjects:
-                            print("No Placed Objects in " + roomname + ", Skipping!")
-                            f.close()
-                            continue
-                       
-                    f.close()
-
-                    rawplacedobjects = str(rawplacedobjects).partition(": ")[-1].rstrip(", \n")
-                    listplacedobjects = rawplacedobjects.split(", ")
-
-                    # since objects have independent positions; each object has its own geometry, properties pair
-                    print("There are " + str(len(listplacedobjects)) + " objects in " + roomname)
-                    for roomobject in listplacedobjects:
-                        if len(roomobject) <= 3:
-                            print("object is a stub, skipping: object " + str(listplacedobjects.index(roomobject)) + ": \"" + roomobject + "\"")
-                            continue
-                        elif "><" not in roomobject:
-                            print("Object " + roomobject + ' does not contain "><" value delimiters, ')
-                            roomobject.split("~")
-
-                            PlacedObject = {
-                                "object":"Unknown",
-                                "data":roomobject
-                                }
-
-                            placedobject_features.append(geojson.Feature(
-                                properties=PlacedObject))
-                        else:
-                            objectentry = roomobject.split("><")
-                            objectname = objectentry[0].strip()
-                            objectposx = objectentry[1]
-                            objectposy = objectentry[2]
-                            objectdata = objectentry[3]
-                            if len(objectdata) == 0:
-                                #print("there is no added data for " + objectname + " in " + roomname + ", supplementing it with the raw coords")
-                                data = {
-                                    "rawCoordX":objectposx,
-                                    "rawCoordY":objectposy
-                                    }
-                            else:
-                                objectdata = objectentry[3].split("~")
-                                data = objectdata
-
-                            # Hefty-ass load of unique instances of object data
-                            processdata = True
-                            if processdata:
-
-                                for placedobject in steampipes:
-                                    if objectname == placedobject:
-                                        data = {
-                                            "rawCoordX":objectposx,
-                                            "rawCoordY":objectposy,
-                                            "handlePosX":objectdata[0],
-                                            "handlePosY":objectdata[1]
-                                        }
-
-                                for placedobject in quadobject:
-                                    if objectname == placedobject:
-                                        data = {
-                                            "rawCoordX":objectposx,
-                                            "rawCoordY":objectposy,
-                                            "handles[0]X":objectdata[0],
-                                            "handles[0]Y":objectdata[1],
-                                            "handles[1]X":objectdata[2],
-                                            "handles[1]Y":objectdata[3],
-                                            "handles[2]X":objectdata[4],
-                                            "handles[2]Y":objectdata[5]
-                                        }
-                                    if objectname == "LightBeam":
-                                        data = {
-                                            "rawCoordX":objectposx,
-                                            "rawCoordY":objectposy,
-                                            "handles[0]X":objectdata[0],
-                                            "handles[0]Y":objectdata[1],
-                                            "handles[1]X":objectdata[2],
-                                            "handles[1]Y":objectdata[3],
-                                            "handles[2]X":objectdata[4],
-                                            "handles[2]Y":objectdata[5],
-                                            "panelPosX":objectdata[6],
-                                            "panelPosY":objectdata[7],
-                                            "alpha":objectdata[8],
-                                            "colorA":objectdata[9],
-                                            "colorB":objectdata[10]
-                                        }
-                                        if len(objectdata) > 12:
-                                            data = {
-                                                "rawCoordX":objectposx,
-                                                "rawCoordY":objectposy,
-                                                "handles[0]X":objectdata[0],
-                                                "handles[0]Y":objectdata[1],
-                                                "handles[1]X":objectdata[2],
-                                                "handles[1]Y":objectdata[3],
-                                                "handles[2]X":objectdata[4],
-                                                "handles[2]Y":objectdata[5],
-                                                "panelPosX":objectdata[6],
-                                                "panelPosY":objectdata[7],
-                                                "alpha":objectdata[8],
-                                                "colorA":objectdata[9],
-                                                "colorB":objectdata[10],
-                                                "sun":objectdata[11], # ? 1 : 0
-                                                "blinkType":objectdata[12],
-                                                "blinkRate":objectdata[13],
-                                                "nightLight":objectdata[14] # ? 1 : 0
-                                            }
-                                        elif len(objectdata) > 11:
-                                            data = {
-                                                "rawCoordX":objectposx,
-                                                "rawCoordY":objectposy,
-                                                "handles[0]X":objectdata[0],
-                                                "handles[0]Y":objectdata[1],
-                                                "handles[1]X":objectdata[2],
-                                                "handles[1]Y":objectdata[3],
-                                                "handles[2]X":objectdata[4],
-                                                "handles[2]Y":objectdata[5],
-                                                "panelPosX":objectdata[6],
-                                                "panelPosY":objectdata[7],
-                                                "alpha":objectdata[8],
-                                                "colorA":objectdata[9],
-                                                "colorB":objectdata[10],
-                                                "sun":objectdata[11] # ? 1 : 0
-                                            }
-                                        elif len(objectdata) != 11:
-                                            print("ISSUE: " + objectname + ", Actual data length: " + str(len(objectdata)) + ", Proper data length(s): 11, 12, & 15")
-
-                                    if objectname == "CustomDecal":
-                                        data = {
-                                            "rawCoordX":objectposx,
-                                            "rawCoordY":objectposy,
-                                            "handles[0]X":objectdata[0],
-                                            "handles[0]Y":objectdata[1],
-                                            "handles[1]X":objectdata[2],
-                                            "handles[1]Y":objectdata[3],
-                                            "handles[2]X":objectdata[4],
-                                            "handles[2]Y":objectdata[5],
-                                            "panelPosX":objectdata[6],
-                                            "panelPosY":objectdata[7],
-                                            "fromDepth":objectdata[8],
-                                            "toDepth":objectdata[9],
-                                            "noise":objectdata[10],
-                                            "imageName":objectdata[11]
-                                            }
-                                        if len(objectdata) > 19:
-                                            vertices = []
-                                            l = 12
-                                            while l < len(objectdata):
-                                                vertices.append(objectdata[l])
-                                                l += 1
-
-                                            data = {
-                                                "rawCoordX":objectposx,
-                                                "rawCoordY":objectposy,
-                                                "handles[0]X":objectdata[0],
-                                                "handles[0]Y":objectdata[1],
-                                                "handles[1]X":objectdata[2],
-                                                "handles[1]Y":objectdata[3],
-                                                "handles[2]X":objectdata[4],
-                                                "handles[2]Y":objectdata[5],
-                                                "panelPosX":objectdata[6],
-                                                "panelPosY":objectdata[7],
-                                                "fromDepth":objectdata[8],
-                                                "toDepth":objectdata[9],
-                                                "noise":objectdata[10],
-                                                "imageName":objectdata[11],
-                                                "vertices":vertices
-                                                }
-                                        elif len(objectdata) != 12:
-                                            print("ISSUE: " + objectname + ", Actual data length: " + str(len(objectdata)) + ", Proper data length(s): 12 & 20")
-
-                                    if objectname == "DeepProcessing":
-                                        data = {
-                                            "rawCoordX":objectposx,
-                                            "rawCoordY":objectposy,
-                                            "handles[0]X":objectdata[0],
-                                            "handles[0]Y":objectdata[1],
-                                            "handles[1]X":objectdata[2],
-                                            "handles[1]Y":objectdata[3],
-                                            "handles[2]X":objectdata[4],
-                                            "handles[2]Y":objectdata[5],
-                                            "panelPosX":objectdata[6],
-                                            "panelPosY":objectdata[7],
-                                            "fromDepth":objectdata[8],
-                                            "toDepth":objectdata[9],
-                                            "intensity":objectdata[10]
-                                            }
-
-                                for placedobject in gridrectobject:
-                                    if objectname == placedobject:
-                                        data = {
-                                            "rawCoordX":objectposx,
-                                            "rawCoordY":objectposy,
-                                            "handlePosX":objectdata[0],
-                                            "handlePosY":objectdata[1]
-                                            }
-
-                                for placedobject in multiplayeritems:
-                                    if objectname == placedobject:
-                                        data = {
-                                            "rawCoordX":objectposx,
-                                            "rawCoordY":objectposy,
-                                            "type":objectdata[0],
-                                            "panelPosX":objectdata[1],
-                                            "panelPosY":objectdata[2],
-                                            "chance":objectdata[3]
-                                            }
-
-                                for placedobject in collecttokens:
-                                    if objectname == placedobject:
-                                        availableToPlayers = objectdata[6].split("|")
-                                        if len(objectdata) == 7:
-                                            data = {
-                                                "rawCoordX":objectposx,
-                                                "rawCoordY":objectposy,
-                                                "handlePosX":objectdata[0],
-                                                "handlePosY":objectdata[1],
-                                                "panelPosX":objectdata[2],
-                                                "panelPosY":objectdata[3],
-                                                "isBlue":objectdata[4],
-                                                "tokenString":objectdata[5],
-                                                "availableToPlayers":availableToPlayers
-                                            }
-                                        elif len(objectdata) == 9:
-                                            data = {
-                                                "rawCoordX":objectposx,
-                                                "rawCoordY":objectposy,
-                                                "handlePosX":objectdata[0],
-                                                "handlePosY":objectdata[1],
-                                                "panelPosX":objectdata[2],
-                                                "panelPosY":objectdata[3],
-                                                "isBlue":objectdata[4],
-                                                "tokenString":objectdata[5],
-                                                "availableToPlayers":availableToPlayers,
-                                                "isGreen":objectdata[7],
-                                                "isWhite":objectdata[8]
-                                                }
-                                        elif len(objectdata) == 10:
-                                            data = {
-                                                "rawCoordX":objectposx,
-                                                "rawCoordY":objectposy,
-                                                "handlePosX":objectdata[0],
-                                                "handlePosY":objectdata[1],
-                                                "panelPosX":objectdata[2],
-                                                "panelPosY":objectdata[3],
-                                                "isBlue":objectdata[4],
-                                                "tokenString":objectdata[5],
-                                                "availableToPlayers":availableToPlayers,
-                                                "isGreen":objectdata[7],
-                                                "isWhite":objectdata[8],
-                                                "isRed":objectdata[9]
-                                                }
-                                        elif len(objectdata) == 11:
-                                            data = {
-                                                "rawCoordX":objectposx,
-                                                "rawCoordY":objectposy,
-                                                "handlePosX":objectdata[0],
-                                                "handlePosY":objectdata[1],
-                                                "panelPosX":objectdata[2],
-                                                "panelPosY":objectdata[3],
-                                                "isBlue":objectdata[4],
-                                                "tokenString":objectdata[5],
-                                                "availableToPlayers":availableToPlayers,
-                                                "isGreen":objectdata[7],
-                                                "isWhite":objectdata[8],
-                                                "isRed":objectdata[9],
-                                                "isDev":objectdata[10]
-                                                }    
-                                        else:
-                                            print("ISSUE: data for collectable token " + objectname + " is neither a length of 7, 9, 10, or 11, but instead is " + str(len(objectdata)))
-
-                                for placedobject in consumableobjects:
-                                    if objectname == placedobject:
-                                        if len(objectdata) > 3:
-                                            data = {
-                                                "rawCoordX":objectposx,
-                                                "rawCoordY":objectposy,
-                                                "panelPosX":objectdata[0],
-                                                "panelPosY":objectdata[1],
-                                                "minRegen":objectdata[2],
-                                                "maxRegen":objectdata[3]
-                                                }
-                                        else:
-                                            print("ISSUE: " + objectname + ", Actual data length: " + str(len(objectdata)) + ", Proper data length: 4")
-
-                                    if objectname == "VoidSpawnEgg":
-                                        if len(objectdata) >= 5:
-                                            data = {
-                                                "rawCoordX":objectposx,
-                                                "rawCoordY":objectposy,
-                                                "panelPosX":objectdata[0],
-                                                "panelPosY":objectdata[1],
-                                                "minRegen":objectdata[2],
-                                                "maxRegen":objectdata[3],
-                                                "exit":objectdata[4]
-                                                }
-                                        else:
-                                            print("ISSUE: " + objectname + ", Actual data length: " + str(len(objectdata)) + ", Proper data length: 5")
-
-                                    for placedobject in datapearl:
-                                        if objectname == placedobject:
-                                            if len(objectdata) >= 5:
-                                                data = {
-                                                    "rawCoordX":objectposx,
-                                                    "rawCoordY":objectposy,
-                                                    "panelPosX":objectdata[0],
-                                                    "panelPosY":objectdata[1],
-                                                    "minRegen":objectdata[2],
-                                                    "maxRegen":objectdata[3],
-                                                    "pearlType":objectdata[4],
-                                                    "hidden":objectdata[5]
-                                                    }
-                                            else:
-                                                print("ISSUE: " + objectname + ", Actual data length: " + str(len(objectdata)) + ", Proper data length: 5")
-
-                                for placedobject in resizableobjects:
-                                    if objectname == placedobject:
-                                        data = {
-                                            "rawCoordX":objectposx,
-                                            "rawCoordY":objectposy,
-                                            "handlePosX":objectdata[0],
-                                            "handlePosY":objectdata[1]
-                                        }
-
-                                    if objectname == "Filter":
-                                        availableToPlayers = objectdata[4].split("|")
-                                        data = {
-                                            "rawCoordX":objectposx,
-                                            "rawCoordY":objectposy,
-                                            "handlePosX":objectdata[0],
-                                            "handlePosY":objectdata[1],
-                                            "panelPosX":objectdata[2],
-                                            "panelPosY":objectdata[3],
-                                            "availableToPlayers":availableToPlayers
-                                            }
-
-                                    elif objectname == "InsectGroup":
-                                        data = {
-                                            "rawCoordX":objectposx,
-                                            "rawCoordY":objectposy,
-                                            "handlePosX":objectdata[0],
-                                            "handlePosY":objectdata[1],
-                                            "panelPosX":objectdata[2],
-                                            "panelPosY":objectdata[3],
-                                            "insectType":objectdata[4],
-                                            "density":objectdata[5]
-                                            }
-
-                                    elif objectname == "ScavengerOutpost":
-                                        data = {
-                                            "rawCoordX":objectposx,
-                                            "rawCoordY":objectposy,
-                                            "handlePosX":objectdata[0],
-                                            "handlePosY":objectdata[1],
-                                            "panelPosX":objectdata[2],
-                                            "panelPosY":objectdata[3],
-                                            "direction":objectdata[4],
-                                            "skullSeed":objectdata[5],
-                                            "pearlsSeed":objectdata[6]
-                                            }
-
-                                if objectname == "LightSource":
-                                    data = {
-                                        "rawCoordX":objectposx,
-                                        "rawCoordY":objectposy,
-                                        "strength":objectdata[0],
-                                        "colorType":objectdata[1],
-                                        "handlePosX":objectdata[2],
-                                        "handlePosY":objectdata[3],
-                                        "panelPosX":objectdata[4],
-                                        "panelPosY":objectdata[5],
-                                        "fadeWithSun":bool(objectdata[6]),
-                                        "flat":bool(objectdata[7]),
-                                        }
-                                    if len(objectdata) > 10:
-                                        data = {
-                                            "rawCoordX":objectposx,
-                                            "rawCoordY":objectposy,
-                                            "strength":objectdata[0],
-                                            "colorType":objectdata[1],
-                                            "handlePosX":objectdata[2],
-                                            "handlePosY":objectdata[3],
-                                            "panelPosX":objectdata[4],
-                                            "panelPosY":objectdata[5],
-                                            "fadeWithSun":bool(objectdata[6]),
-                                            "flat":bool(objectdata[7]),
-                                            "blinkType":objectdata[8],
-                                            "blinkRate":objectdata[9],
-                                            "nightLight":bool(objectdata[10])
-                                        }
-                                    elif len(objectdata) > 8:
-                                        data = {
-                                            "rawCoordX":objectposx,
-                                            "rawCoordY":objectposy,
-                                            "strength":objectdata[0],
-                                            "colorType":objectdata[1],
-                                            "handlePosX":objectdata[2],
-                                            "handlePosY":objectdata[3],
-                                            "panelPosX":objectdata[4],
-                                            "panelPosY":objectdata[5],
-                                            "fadeWithSun":bool(objectdata[6]),
-                                            "flat":bool(objectdata[7]),
-                                            "blinkType":objectdata[8],
-                                            "blinkRate":objectdata[9],
-                                        }
-                                    elif len(objectdata) != 8:
-                                        print("ISSUE: " + objectname + ", Actual data length: " + str(len(objectdata)) + ", Proper data length(s): 8, 10, & 11")
-                                    
-                                elif objectname == "LightFixture":
-                                    data = {
-                                        "rawCoordX":objectposx,
-                                        "rawCoordY":objectposy,
-                                        "type":objectdata[0],
-                                        "panelPosX":objectdata[1],
-                                        "panelPosY":objectdata[2],
-                                        "randomSeed":objectdata[3]
-                                        }
-
-                                elif objectname == "SSLightRod":
-                                    data = {
-                                        "rawCoordX":objectposx,
-                                        "rawCoordY":objectposy,
-                                        "panelPosX":objectdata[0],
-                                        "panelPosY":objectdata[1],
-                                        "depth":objectdata[2],
-                                        "rotation":objectdata[3],
-                                        "length":objectdata[4],
-                                        "brightness":objectdata[5]
-                                        }
-
-                                elif objectname == "CellDistortion":
-                                    data = {
-                                        "rawCoordX":objectposx,
-                                        "rawCoordY":objectposy,
-                                        "handlePosX":objectdata[0],
-                                        "handlePosY":objectdata[1],
-                                        "panelPosX":objectdata[2],
-                                        "panelPosY":objectdata[3],
-                                        "intensity":objectdata[4],
-                                        "scale":objectdata[5],
-                                        "chromaticIntensity":objectdata[6],
-                                        "timeMult":objectdata[7]
-                                        }
-
-                                elif objectname == "OESphere":
-                                    data = {
-                                        "rawCoordX":objectposx,
-                                        "rawCoordY":objectposy,
-                                        "handlePosX":objectdata[0],
-                                        "handlePosY":objectdata[1],
-                                        "panelPosX":objectdata[2],
-                                        "panelPosY":objectdata[3],
-                                        "depth":objectdata[4],
-                                        "intensity":objectdata[5]
-                                        }
-
-                                elif objectname == "SnowSource":
-                                    data = {
-                                        "rawCoordX":objectposx,
-                                        "rawCoordY":objectposy,
-                                        "shape":objectdata[0],
-                                        "handlePosX":objectdata[1],
-                                        "handlePosY":objectdata[2],
-                                        "panelPosX":objectdata[3],
-                                        "panelPosY":objectdata[4],
-                                        "intensity":objectdata[5],
-                                        "noisiness":objectdata[6]
-                                        }
-
-                                elif objectname == "LocalBlizzard":
-                                    data = {
-                                        "rawCoordX":objectposx,
-                                        "rawCoordY":objectposy,
-                                        "handlePosX":objectdata[0],
-                                        "handlePosY":objectdata[1],
-                                        "panelPosX":objectdata[2],
-                                        "panelPosY":objectdata[3],
-                                        "intensity":objectdata[4],
-                                        "scale":objectdata[5],
-                                        "angle":objectdata[6]
-                                        }
-
-                                elif objectname == "LightingMachine":
-                                    data = {
-                                        "rawCoordX":objectposx,
-                                        "rawCoordY":objectposy,
-                                        "panelPosX":objectdata[0],
-                                        "panelPosY":objectdata[1],
-                                        "posX":objectdata[2],
-                                        "posY":objectdata[3],
-                                        "startPointX":objectdata[4],
-                                        "startPointY":objectdata[5],
-                                        "endPointX":objectdata[5],
-                                        "endPointY":objectdata[6],
-                                        "chance":objectdata[7],
-                                        "permanent":objectdata[8],
-                                        "radial":objectdata[9],
-                                        "width":objectdata[10],
-                                        "intensity":objectdata[11],
-                                        "lifeTime":objectdata[12],
-                                        "lightingParam":objectdata[13],
-                                        "lightingType":objectdata[14],
-                                        "impact":objectdata[15],
-                                        "volume":objectdata[16],
-                                        "soundType":objectdata[17],
-                                        "random":bool(objectdata[18]),
-                                        "light":bool(objectdata[19])
-                                        }
-
-                                elif objectname == "EnergySwirl":
-                                    data = {
-                                        "rawCoordX":objectposx,
-                                        "rawCoordY":objectposy,
-                                        "colorType":objectdata[0],
-                                        "handlePosX":objectdata[1],
-                                        "handlePosY":objectdata[2],
-                                        "panelPosX":objectdata[3],
-                                        "panelPosY":objectdata[4],
-                                        "depth":objectdata[5]
-                                        }
-
-                                elif objectname == "DayNightSettings":
-                                    data = {
-                                        "rawCoordX":objectposx,
-                                        "rawCoordY":objectposy,
-                                        "panelPosX":objectdata[0],
-                                        "panelPosY":objectdata[1],
-                                        "duskPalette":objectdata[2],
-                                        "nightPalette":objectdata[3]
-                                        }
-
-                                elif objectname == "FairyParticleSettings":
-                                    data = {
-                                        "rawCoordX":objectposx,
-                                        "rawCoordY":objectposy,
-                                        "panelPosX":objectdata[0],
-                                        "panelPosY":objectdata[1],
-                                        "absPulse":bool(objectdata[2]),
-                                        "pulseMin":objectdata[3],
-                                        "pulseMax":objectdata[4],
-                                        "pulseRate":objectdata[5],
-                                        "scaleMin":objectdata[6],
-                                        "scaleMax":objectdata[7],
-                                        "interpDurMin":objectdata[8],
-                                        "interpDurMax":objectdata[9],
-                                        "interpDistMin":objectdata[10],
-                                        "interpDistMax":objectdata[11],
-                                        "dirDevMin":objectdata[12],
-                                        "dirDevMax":objectdata[13],
-                                        "dirMin":objectdata[14],
-                                        "dirMax":objectdata[15],
-                                        "colorHmin":objectdata[16],
-                                        "colorHmax":objectdata[17],
-                                        "colorSmin":objectdata[18],
-                                        "colorSmax":objectdata[19],
-                                        "colorLmin":objectdata[20],
-                                        "colorLmax":objectdata[21],
-                                        "interpTrans":objectdata[22],
-                                        "alphaTrans":objectdata[23],
-                                        "numKeyframes":objectdata[24],
-                                        "spriteType":objectdata[25],
-                                        "dirLerpType":objectdata[26],
-                                        "speedLerpType":objectdata[27],
-                                        "glowRad":objectdata[28],
-                                        "glowStrength":objectdata[29],
-                                        "rotationRate":objectdata[30]
-                                        }
-                                elif objectname == "Rainbow":
-                                    data = {
-                                        "rawCoordX":objectposx,
-                                        "rawCoordY":objectposy,
-                                        "handlePosX":objectdata[0],
-                                        "handlePosY":objectdata[1],
-                                        "panelPosX":objectdata[2],
-                                        "panelPosY":objectdata[3],
-                                        "fades":objectdata[4]
-                                        }
-
-                            PlacedObject = {
-                                "room":roomname,
-                                "object":objectname,
-                                "data":data
-                                }
-
-                            objectcoords = room['roomcoords'] + center_of_tile + np.array([float(objectposx),float(objectposy)])
-                            placedobject_features.append(geojson.Feature(
-                                geometry=geojson.Point(np.array(objectcoords).round().tolist()),
-                                properties=PlacedObject))
-
-                # read from the original feature list, then modify a copy of the list, to later replace the original with when finished
-                dofilter = True
-                if dofilter:
-                    filteredplacedobject_features = placedobject_features
-                    totalFilters = 0
-                    allFilteredObjects = []
-                    for filterObject in placedobject_features:
-                        objectname = filterObject.properties["object"]
-                        roomname = filterObject.properties["room"]
-                        #print("before block: " + objectname)
-                        objectsInFilter = []
-                        if str(objectname) == "Filter":
-                            totalFilters += 1
-                            yoinkedGeometry = filterObject.geometry
-                            filterx = float(filterObject.properties["data"]["rawCoordX"])
-                            filtery = float(filterObject.properties["data"]["rawCoordY"])
-                            handlex = float(filterObject.properties["data"]["handlePosX"])
-                            handley = float(filterObject.properties["data"]["handlePosY"])
-                            panelx = float(filterObject.properties["data"]["panelPosX"])
-                            panely = float(filterObject.properties["data"]["panelPosY"])
-                            filterToPlayers = filterObject.properties["data"]["availableToPlayers"]
-
-                            # radius of filter
-                            sqrfr = math.pow(handlex, 2) + math.pow(handley, 2)
-                            fr = math.sqrt(sqrfr)
-                            
-                            data = {
-                                "rawCoordX":filterx,
-                                "rawCoordY":filtery,
-                                "handlePosX":handlex,
-                                "handlePosY":handley,
-                                "panelPosX":panelx,
-                                "panelPosY":panely,
-                                "availableToPlayers":filterToPlayers
-                            }
-
-                            print("Filter in use is: " + str(yoinkedGeometry))
-                            print("Room: " + roomname + " | Object: " + objectname)
-                            print(filterToPlayers)
-                            print("Filter Radius: " + str(fr) + " | Current Slugcat: " + slugcat)
-
-                            processedObjectCount = 0
-                            filterObjectCount = 0
-
-                            filterWithObjects = {
-                                "room":roomname,
-                                "object":objectname,
-                                "data":data,
-                                "objectsInFilter":objectsInFilter
-                            }
-                            filterObject.properties = filterWithObjects
-                            # go through non-filter objects to match ones within
-                            for processedObject in placedobject_features:
-                                objectroom = processedObject.properties["room"]
-                                name = processedObject.properties["object"]
-                                if objectroom == roomname:
-                                    if objectname != name:
-                                        processedObjectCount += 1
-                                        #print(processedObject)
-                                        filteredobjectx = float(processedObject.properties["data"]["rawCoordX"])
-                                        filteredobjecty = float(processedObject.properties["data"]["rawCoordY"])
-                                        sqrdist = math.pow((filteredobjectx - filterx), 2) + math.pow((filteredobjecty - filtery), 2)
-                                        dist = math.sqrt(sqrdist)
-                                        # add objects within radius of filter to a list embedded within the master filter
-                                        if dist <= fr:
-                                            print("Object: " + name + " | Distance from filter: " + str(dist) + " | ", end='')
-                                            print("Within Radius: YES")
-                                            # FUCK YOU pop()
-                                            objectsInFilter.append(processedObject)
-                                            # test of injecting a new field to objects within a filter, so that they may be filtered per feature, since there are issues with 
-                                            # parsing features embedded inside of another
-                                            processedObject.properties["filterToPlayers"] = filterToPlayers
-                                        #else:
-                                            #print("Within Radius: no")
-                                    else:
-                                        filterObjectCount += 1
-
-                            print(roomname + " | Object Count: " + str(processedObjectCount) + " | Filter Count: " + str(filterObjectCount))
-                            # take objects that the filter applies to and stick the list under filter properties
-                            filteredplacedobject_features[filteredplacedobject_features.index(filterObject)]=(geojson.Feature(geometry=yoinkedGeometry,properties=filterWithObjects))
-                            allFilteredObjects.append(objectsInFilter)
-
-                    print("Total filters in region: " + str(totalFilters))
-                    #print(allFilteredObjects)
-                    # Delete the original features that were pulled into the filters, after the group of features is done being read from, so, ya know, we don't cause 
-                    # issues for rooms with multiple filter objects, cuz we don't want to be shifting indexes or other problems, or just using pop() in general
-                    #for roomfilter in allFilteredObjects:
-                        #for roomobject in roomfilter:
-                            #print("roomobject: " + str(roomobject))
-                            #filteredplacedobject_features[filteredplacedobject_features.index(roomobject)] = ""
-
-                    #Since filter process is done, we can now update the original
-                    features["placedobject_features"] = filteredplacedobject_features
-
-                # were it so easy
-                print("placed object task done!")
-
-            ## Shortcuts and tilenodes
-            if task_export_tilenode_features:
-                tilenode_features = []
-                features["tilenode_features"] = tilenode_features
-                shortcut_features = []
-                features["shortcut_features"] = shortcut_features
-                worldName = regiondata["acronym"].lower()
-                mergedmodspath = ""
-                vanillapath = ""
-                mscpath = ""
-                ismergedmods = False
-                ismsc = False
-                isvanilla = False
-                dodimensions = True
-                dolight = False
-                docamera = False
-                doborder = False
-                donodes = True
-                doshortcuts = False
-                mscregions = ("rm","vs","ms","lc","hr","cl","oe","ug","dm","lm")
-                worldsources = ([mscprefix,"MSC",ismsc,mscpath],[mergedmodsprefix,"MergedMods",ismergedmods,mergedmodspath],[vanillaprefix,"Vanilla",isvanilla,vanillapath])
-                print("starting shortcut task!")
-                for roomname, room in rooms.items():
-                    roomName = room['roomName'].lower()
-                    room['roomcoords'] = np.array(room['devPos']) * 10 # map coord to room px coords
-
-                    if roomName.startswith("offscreen"): # or roomName.startswith("gate")
-                        print("Offscreen rooms do not have shortcuts: Skipping " + roomname + "!")
-                        continue
-
-                    # redundant and blatant plagarism of my placed objects code, oh well...
-                    # No need to capture the isolated gate shelters within the vanilla world file, its not like they contain shortcuts '\_:\_/'
-
-                    def fileresolver(roomName):
-                        # GATE SHELTERS SMH
-                        # check for gate rooms, not that they have shortcuts... :(
-                        # read and write which world sources a room is found in
-                        # need to cycle through gate and normal rooms
-                        # slugcat specific and general settings, skip this for vanilla and merged
-
-                        pathdata = worldsources
-                        for worldsource in pathdata:
-                            if roomName.startswith("gate"):
-                                subfolder = "\gates\\"
-                                roomtype = "gate"
-                            else:
-                                subfolder = "\\" + worldName + "-rooms\\"
-                                roomtype = "room"
-
-                            skipMergedMods = False
-                            skipVanilla = False
-                            for mscregion in mscregions:
-                                if worldName == mscregion and worldsource[1] == "MergedMods":
-                                    skipMergedMods = True
-                                if worldName == mscregion and worldsource[1] == "Vanilla":
-                                    skipVanilla = True
-
-                            if skipMergedMods and roomtype == "room":
-                                print("skipping MergedMods: msc exclusive room")
-                                continue
-                            if skipVanilla and roomtype == "room":
-                                print("skipping Vanilla: msc exclusive room")
-                                continue
-                            
-                            roomfilepath = worldsource[0] + subfolder + roomname + ".txt"
-                            if (os.path.exists(roomfilepath)):
-                                print("Found " + roomtype + " " + roomname + " file in " + worldsource[1])
-                                worldsource[2] = True
-                                worldsource[3] = roomfilepath
-                            else:
-                                if worldsource[1] == "Vanilla":
-                                    print("No " + roomtype + " file in " + worldsource[1] + " : Checking the gate shelters folder")
-                                    subfolder = "\gate shelters\\"
-                                    roomtype = "gate shelter"
-                                    roomfilepath = worldsource[0] + subfolder + roomname + ".txt"
-                                    if (os.path.exists(roomfilepath)):
-                                        print("Found " + roomtype + " " + roomname + " file in " + worldsource[1])
-                                        worldsource[2] = True
-                                        worldsource[3] = roomfilepath
-                                else:
-                                    print("No " + roomtype + " file in " + worldsource[1])
-                                    continue
-                            
-                        # MSC FIRST
-                        # NOT mergedmods first; will cause issues with duplicate gates in msc and vanilla, since their actual per region usage isn't explicit
-                        # about modifed and merged files; if a file exists in msc, it will only be a full file, either original or overwriting, whereas modified files
-                        # will be found in mergedmods as complete files, if not found in msc
-                        
-                        mscusedname = os.path.basename(pathdata[0][3]).replace(".txt","")
-                        mergedmodsusedname = os.path.basename(pathdata[1][3]).replace(".txt","")
-                        vanillausedname = os.path.basename(pathdata[2][3]).replace(".txt","")
-
-                        resolvedpath = ""
-                        if not pathdata[0][2] and mscusedname != roomname:
-                            # MERGEDMODS SECOND
-                            # NOT msc second; will cause issues with duplicate gates in msc and vanilla, since their actual per region usage isn't explicit
-                            if not pathdata[1][2] and mergedmodsusedname != roomname:
-                                # vanilla is last priority
-                                if not pathdata[2][2] and vanillausedname != roomname:
-                                    print(roomname + " is not in any world file")
-                                elif vanillausedname == roomname:
-                                    resolvedpath = pathdata[2][3]
-                                    print("this is vanilla")
-                            elif mergedmodsusedname == roomname:
-                                resolvedpath = pathdata[1][3]
-                                print("this is mergedmods")
-                        elif mscusedname == roomname:
-                            resolvedpath = pathdata[0][3]
-                            print("this is msc")
-                        else:
-                            if mscusedname == roomname:
-                                resolvedpath = pathdata[0][3]
-                                print("matched msc")
-                            if mergedmodsusedname == roomname:
-                                resolvedpath = pathdata[1][3]
-                                print("matched mergedmods")
-                            if vanillausedname == roomname:
-                                resolvedpath = pathdata[2][3]
-                                print("matched vanilla")
-
-                        # make sure that the resolved path and world source are the same
-                        if resolvedpath != "":
-                            print("Using " + resolvedpath)
-                            return resolvedpath
-
-                    filepath = fileresolver(roomName)
-
-                    # Get the connection map at line 10, and room tiles at line 12
-                    with open(filepath, 'r', encoding="utf-8") as f:
-                        roomfile = f.readlines()
-                        roomnameline = 1
-                        dimensionline = 2
-                        lightline = 3
-                        cameraline = 4
-                        borderline = 5
-                        itemline = 6
-                        if len(roomfile) == 12:
-                            shortcutline = 10
-                            roomtilesline = 12
-                        elif len(roomfile) == 8:
-                            shortcutline = 6
-                            roomtilesline = 8
-
-                        print("length of roomfile: " + str(len(roomfile)))
-
-                        i = 1
-                        while i < len(roomfile):
-                            for line in roomfile:
-                                if i == roomnameline:
-                                    print("found room name at line " + str(i) + " in " + os.path.basename(filepath))
-                                    fileroomname = line
-                                if i == dimensionline and dodimensions:
-                                    print("found dimensions at line " + str(i) + " in " + os.path.basename(filepath))
-                                    roomdimensions = line
-                                if i == lightline and dolight:
-                                    print("found light data at line " + str(i) + " in " + os.path.basename(filepath))
-                                    roomlight = line
-                                if i == cameraline and docamera:
-                                    print("found camera map at line " + str(i) + " in " + os.path.basename(filepath))
-                                    roomcameras = line
-                                if i == borderline and doborder:
-                                    print("found border type at line " + str(i) + " in " + os.path.basename(filepath))
-                                    roomborder = line
-                                if i == itemline:
-                                    print("found items at line " + str(i) + " in " + os.path.basename(filepath))
-                                    roomitems = line
-                                if i == shortcutline and doshortcuts:
-                                    print("found connection map at line " + str(i) + " in " + os.path.basename(filepath))
-                                    connectionsmap = line
-                                if i == roomtilesline and donodes:
-                                    print("found room tiles at line " + str(i) + " in " + os.path.basename(filepath))
-                                    roomfilenodes = line
-
-                                i += 1
-
-                    if dodimensions:
-                        roomdimensions = roomdimensions.strip("\n").split("|")
-                        roomdim = roomdimensions[0].split("*")
-                        roomwidth = int(roomdim[0])
-                        roomheight = int(roomdim[1])
-                        waterlevel = roomdimensions[1]
-                        infrontofterrain = roomdimensions[2]
-
-                    roomcoords = room['roomcoords']
-                    size_x = room['size'][0]
-                    size_y = room['size'][1]
-                    if donodes:
-                        # Find Nodes and Other good stuff
-                        roomfilenodes = roomfilenodes.rstrip("|\n").split("|")
-                        terraintypes = ("Air","Solid","Slope","Floor","ShortcutEntrance")
-                        shortcuttypes = ("DeadEnd","Normal","RoomExit","CreatureHole","NPCTransportation","RegionTransportation")
-                        roomnodetypes = ("Exit","Den","RegionTransportation","SideExit","SkyExit","SeaExit","BatHive","GarbageHoles")
-                        # simple in room coords
-                        roomtilecoords = []
-                        roomtiledata = []
-                        roomtiles = []
-                        tilecolumn = []
-                        tilearray = []
-                        shortcutTileArray = []
-
-                        # convert file nodes into an array, not just a list
-                        print("room width: " + str(size_x))
-                        print("room height: " + str(size_y))
-                        print("length of roomfilenodes: " + str(len(roomfilenodes)))
-                        print("width times height: " + str((size_x * size_y)))
-                        for column in range(0,size_x):
-                            tilecolumn = []
-                            for tile in range((size_y * column) - size_y,size_y * column):
-                                tilecolumn.append(roomfilenodes[tile])
-
-                            tilearray.append((tilecolumn))
-                            #print("Length of column " + str(column) + ": " + str(len(tilecolumn)))
-                            #print(tilecolumn)
-
-                        # top down, left right
-                        # Start at vertical columns
-                        for x in range(1,size_x,1):
-                            tileX = x
-                            # cycle through the same x, changing in y, the horizontal rows
-                            # Start at top left, tile 0,0, then go down, increasing in y until reaching size_y, then stepping to the right by 1 x, starting from the top down again
-                            # start with highest Y, uhm well we need to invert the current y coords, since the first tile is actually at the max y in terms of having an origin at the bottom left
-                            for y in range(1,size_y,1):
-                                tileIsWorthy = False
-                                isShortcutTile = False
-                                tileY = y
-                                tilecoords = (tileX - 1,(size_y - tileY - 1))
-
-                                tile = tilearray[tileX][tileY]
-                                # start at 0, end at x*y
-                                tileentries = tile.split(",")
-                                terraintype = int(tileentries[0])
-
-                                if terraintype == 0:
-                                    terraintype = terraintypes[0]
-                                if terraintype == 1:
-                                    terraintype = terraintypes[1]
-                                if terraintype == 2:
-                                    terraintype = terraintypes[2]
-                                if terraintype == 3:
-                                    terraintype = terraintypes[3]
-                                if terraintype == 4:
-                                    terraintype = terraintypes[4]
-                                    tileIsWorthy = True
-                                    isShortcutTile = True
-                                tileattributes = []
-                                v = 1
-                                while v < len(tileentries):
-                                    tileattributes.append(tileentries[v])
-                                    v += 1
-
-                                verticalbeam = False
-                                horizontalbeam = False
-                                shortcut = None
-                                wallbehind = False
-                                hivetile = False
-                                waterfall = False
-                                garbagehole = False
-                                wormgrass = False
-
-                                tiledata = {}
-                                tiledata["coordX"] = tilecoords[0]
-                                tiledata["coordY"] = tilecoords[1]
-                                tiledata["terrain"] = terraintype
-                                
-                                for value in tileattributes:
-                                    value = int(value)
-                                    if value == 1:
-                                        tiledata["verticalbeam"] = True
-                                    if value == 2:
-                                        tiledata["horizontalbeam"] = True
-                                    if value == 3:
-                                        tiledata["shortcut"] = shortcuttypes[1]
-                                        isShortcutTile = True
-                                    if value == 4:
-                                        tiledata["shortcut"] = shortcuttypes[2]
-                                        tileIsWorthy = True
-                                        isShortcutTile = True
-                                    if value == 5:
-                                        tiledata["shortcut"] = shortcuttypes[3]
-                                        tileIsWorthy = True
-                                        isShortcutTile = True
-                                    if value == 6:
-                                        tiledata["wallbehind"] = True
-                                    if value == 7:
-                                        tiledata["hivetile"] = True
-                                        tileIsWorthy = True
-                                    if value == 8:
-                                        tiledata["waterfall"] = True
-                                        tileIsWorthy = True
-                                    if value == 9:
-                                        tiledata["shortcut"] = shortcuttypes[4]
-                                        tileIsWorthy = True
-                                        isShortcutTile = True
-                                    if value == 10:
-                                        tiledata["garbagehole"] = True
-                                        tileIsWorthy = True
-                                    if value == 11:
-                                        tiledata["wormgrass"] = True
-                                        tileIsWorthy = True
-                                    if value == 12:
-                                        tiledata["shortcut"] = shortcuttypes[5]
-                                        tileIsWorthy = True
-                                        isShortcutTile = True
-
-                                # only record significant tiles
-                                if 1 == 2: #tileIsWorthy:
-                                    roomtiledata.append(tilecoords)
-                                    #roomtiles.append(tiledata)
-                                    nodecoords = room['roomcoords'] + center_of_tile + 20* np.array(tilecoords)
-                                    tilenode_features.append(geojson.Feature(
-                                        geometry=geojson.Point(np.array(nodecoords).round().tolist()),
-                                        properties={
-                                            "roomname":roomname,
-                                            "roomtile":tiledata,
-                                            }))
-
-                                if isShortcutTile:
-                                    tiledata["room"] = roomname
-                                    shortcutTileArray.append(tiledata)
-
-                                #roomtilecoords.append(tilecoords)
-
-                    if dolight:
-                        roomlight = roomlight.strip("\n").split("|")
-                        roomangle = roomlight[0].split("*")
-                        angle1 = roomangle[0]
-                        angle2 = roomangle[1]
-                        value3 = roomlight[1]
-                        value4 = roomlight[2]
-
-                    if docamera:
-                        cameras = {}
-                        roomcameras = roomcameras.strip("\n").split("|")
-                        cameraindex = 0
-                        cameralist = []
-                        for camera in roomcameras:
-                            camera = roomcameras[camera.index(camera)]
-                            coords = camera.split(",")
-                            camX = coords[0]
-                            camY = coords[1]
-
-                            cameras = ("camera: " + camera,"camX: " + camX,"camY: " + camY)
-
-                            cameralist.append(cameras)
-                            cameraindex += 1
-
-                    if doborder:
-                        roomborder = roomborder.strip("Border: \n")
-                        itemslist = []
-                        if len(roomitems) > 1:
-                            items = {}
-                            roomitems = roomitems.rstrip("|\n").split("|")
-                            for item in roomitems:
-                                item = item.split(",")
-                                iitem = item[0]
-                                tileX = item[1]
-                                tileY = item[2]
-                                items = ("item: " + str(iitem),"tileX" + str(tileX),"tileY" + str(tileY))
-
-                                itemslist.append(items)
-
-                    # Take the proccessed worthy tile array, then match up adjacent tiles of the same type
-                    doshortcutstring = True
-                    if doshortcutstring:
-                        shortcutstring_features = []
-                        features["shortcutstring_features"] = shortcutstring_features
-                        roomNodes = []
-                        roomNodeCoords = []
-                        mapShortcutCoords = []
-                        mapCoords = []
-                        adjacentShortcutTiles = []
-                        shortcutStrings = 0
-                        while shortcutStrings < len(shortcutTileArray):
-                            upperNode = shortcutTileArray[shortcutStrings]
-                            if upperNode["shortcut"] != "Normal":
-                                continue
-
-                            baseNode = upperNode
-                            baseNodeCoords = (baseNode["coordX"],baseNode["coordY"])
-                            
-                            shortcutNodes = [baseNode]
-                            shortcutNodeCoords = [baseNodeCoords]
-                            
-                            
-                            #print("Base Node: " + str(baseNodeCoords))
-                            
-                            # in order to string together adjacent tiles, we must test for any coordinates off by one, then go to the next tile
-                            # find the adjacent nodes for each node an put those into a list, then merge lists with duplicate nodes
-                            for node in shortcutTileArray:
-                                # switch to the last node in the list when looking for adjacent nodes: starts with the baseNode first time
-                                latestNode = shortcutNodes[-1]
-                                # skip over nodes that have already been integrated into lists
-                                
-                                # if tile adjacent
-                                if node != latestNode and node != baseNode and node["room"] == latestNode["room"]:
-                                    
-                                    latestNodeCoords = (latestNode["coordX"],latestNode["coordY"])
-                                    # skip over nodes that have already been integrated into lists
-                                    if isinstance(shortcutNodeCoords.index(latestNodeCoords), int) and shortcutNodeCoords.index(latestNodeCoords) != 0:
-                                        print("already in list")
-                                        continue
-
-                                    endNodeCoords = (node["coordX"],node["coordY"])
-                                    if node["coordX"] - latestNode["coordX"] == 0:
-                                        #print("node and latestNode have the same x")
-                                        if node["coordY"] - latestNode["coordY"] == 1:
-                                            #print("latestNode: " + str(latestNodeCoords))
-                                            #print("Node: " + str(endNodeCoords))
-                                            #print("node is adjacent above the latestNode")
-                                            shortcutNodes.append(node)
-                                            shortcutNodeCoords.append(latestNodeCoords)
-                                            adjacentTiles = True
-                                        elif node["coordY"] - latestNode["coordY"] == -1:
-                                            #print("latestNode: " + str(latestNodeCoords))
-                                            #print("Node: " + str(endNodeCoords))
-                                            #print("node is adjacent below latestNode")
-                                            shortcutNodes.append(node)
-                                            shortcutNodeCoords.append(latestNodeCoords)
-                                            adjacentTiles = True
-
-                                    elif node["coordY"] - latestNode["coordY"] == 0:
-                                        #print("node and latestNode have the same y")
-                                        if node["coordX"] - latestNode["coordX"] == 1:
-                                            #print("latestNode: " + str(latestNodeCoords))
-                                            #print("Node: " + str(endNodeCoords))
-                                            #print("node is adjacent to the right of latestNode")
-                                            shortcutNodes.append(node)
-                                            shortcutNodeCoords.append(latestNodeCoords)
-                                            adjacentTiles = True
-                                        elif node["coordY"] - latestNode["coordX"] == -1:
-                                            #print("latestNode: " + str(latestNodeCoords))
-                                            #print("Node: " + str(endNodeCoords))
-                                            #print("node is adjacent to the left of latestNode")
-                                            shortcutNodes.append(node)
-                                            shortcutNodeCoords.append(latestNodeCoords)
-                                            adjacentTiles = True
-                                    else:
-                                        adjacentTiles = False
-                                            
-                            # only append nodes that were found to have adjacent tiles
-                            if len(shortcutNodes) > 1 and len(shortcutNodeCoords) > 1:
-
-                                if shortcutNodeCoords[0] == shortcutNodeCoords[1]:
-                                    shortcutNodeCoords.remove(shortcutNodeCoords[0])
-
-                                roomNodes.append(shortcutNodes)
-                                roomNodeCoords.append(shortcutNodeCoords)
-                                print("shortcutNodes: " + str(shortcutNodeCoords) + " length of nodes: " + str(len(shortcutNodeCoords)))
-
-                            shortcutStrings += 1
-                        print("roomNodes: " + str(roomNodeCoords))
-                        
-                    #print(roomtilecoords)
-                    #print(roomtiledata)
-                    #print(shortcutTileArray)
-
-                    if doshortcuts:
-                        roomshortcuts = []
-                        a = str(connectionsmap).rstrip("|\n")
-                        b = a.split("|")
-                        shortcutsheader = {
-                            "roomgen":b[0],
-                            "roomlength":b[1],
-                            "roommaplength":b[2]
-                            }
-
-                        l = 3
-                        connpaths = []
-                        while l < len(b):
-                            connpaths.append(b[l])
-                            l += 1
-
-                        shortcuts = []
-                        for connpath in connpaths:
-                            c = str(connpath).rstrip(",").split(",")
-                            connheader = {
-                                "type":c[0],
-                                "shortcutlength":c[1],
-                                "submerged":c[2],
-                                "viewedbycamera":c[3],
-                                "entrancewidth":c[4]
-                                }
-
-                            e = 5
-                            connectivity = []
-                            while e < len(c):
-                                connectivity.append(c[e])
-                                e += 1
-
-                            connpairs = []
-                            shortcut = []
-                            for connpair in connectivity:
-                                d = str(connpair).split(" ")
-                                connpairs.append((d[0],d[1]))
-
-                            shortcut = (connheader,connpairs)
-
-                            shortcuts.append(shortcut) 
-
-                        roomheader = {
-                            "room":roomname
-                            }
-                        roomshortcuts = (roomheader,shortcutsheader,shortcuts)
-                        shortcut_features.append(geojson.Feature(
-                            geometry=geojson.MultiLineString(),
-                            properties=roomshortcuts))
-                print("tile node task done!")
-
-            ## RoomTags
-            if task_export_roomtag_features:
-                roomtag_features = []
-                features["roomtag_features"] = roomtag_features
-                roomtags = ("GATE","SWARMROOM","SHELTER","ANCIENTSHELTER","SCAVOUTPOST","SCAVTRADER","PERF_HEAVY","NOTRACKERS","ARENA")
-                print("room tag task!")
-                for roomentry in regiondata["roomtags"]:
-                    roomentry = roomentry.strip()
-                    tagroomname = roomentry.partition(" : ")[0]
-                    roomtag = roomentry.partition(" : ")[2].partition(" : ")[2]
-
-                    for roomname, room in rooms.items():
-                        if tagroomname == roomname:
-                            roomcam_min = room['camcoords'][0]
-                            roomcam_max = room['camcoords'][0]
-                            for camcoords in room['camcoords']:
-                                roomcam_min = np.min([roomcam_min, camcoords],0)
-                                roomcam_max = np.max([roomcam_max, camcoords + camsize],0)
-                            popupcoords = (roomcam_max - np.array([((roomcam_max[0] - roomcam_min[0]), 0)])/2).round().tolist()[0]
-                            for tagentry in roomtags:
-                                if roomtag == tagentry:
-                                    print("tagged " + tagroomname + " as " + tagentry)
-                                    roomtag_features.append(geojson.Feature(
-                                        geometry = geojson.Point(np.array(popupcoords).round().tolist()),
-                                        properties = {
-                                            "room":tagroomname,
-                                            "tag":roomtag
-                                        }))
-                print("room tag task done!")
-
-            ## Bat Migration Blockages
-            if task_export_batmigrationblockages_features:
-                if len(regiondata["batmigrationblockages"]) > 0:
-                    batmigrationblockages_features = []
-                    features["batmigrationblockages_features"] = batmigrationblockages_features
-                    print("starting bat migration blockages task!")
-                    for blockageentry in regiondata["batmigrationblockages"]:
-                        if not blockageentry:
-                            print("no bat migration entries for current region")
-                            blockageentry = ""
-                            continue
-
-                        for roomname, room in rooms.items():
-                            if blockageentry == roomname:
-                                roomcam_min = room['camcoords'][0]
-                                roomcam_max = room['camcoords'][0]
-                                for camcoords in room['camcoords']:
-                                    roomcam_min = np.min([roomcam_min, camcoords],0)
-                                    roomcam_max = np.max([roomcam_max, camcoords + camsize],0)
-                                popupcoords = (roomcam_max - np.array([((roomcam_max[0] - roomcam_min[0]), 0)])/2).round().tolist()[0]
-                                print("bat migration is blocked for room " + blockageentry)
-                                batmigrationblockages_features.append(geojson.Feature(
-                                    geometry=geojson.Point(np.array(popupcoords).round().tolist()),
-                                    properties = {
-                                    "room":blockageentry
-                                    }))
-                else:
-                    print("No Entries for " + entry.name)
-                print("bat migration blockages task done!")
-
-            ## End
             target = os.path.join(output_folder, slugcat, entry.name)
             if not os.path.exists(target):
                 os.makedirs(target, exist_ok=True)
@@ -2081,7 +568,7 @@ def do_slugcat(slugcat: str):
                 json.dump(features,myout)
             print("done with features task")
 
-        print("Region done! " + slugcat + "/" + entry.name)
+        print("Region done! " + entry.name)
 
     print("Slugcat done! " + slugcat)
 

@@ -34,18 +34,15 @@ sealed class Slugcat : IJsonObject
 
         startingRoom = ss.denPosition;
 
-        if (startingRoom.StartsWith("GATE_"))
-        {
+        if (startingRoom.StartsWith("GATE_")) {
             startingRegion = startingRoom == "GATE_OE_SU" ? "SU" : throw new Exception($"Unknown starting region from room {startingRoom} for slugcat {game.StoryCharacter.value}");
         }
-        else
-        {
+        else {
             startingRegion = startingRoom.Split('_')[0];
         }
 
         regions = new Dictionary<string, string>();
-        foreach (var reg in SlugcatStats.getSlugcatStoryRegions(game.StoryCharacter).Concat(SlugcatStats.getSlugcatOptionalRegions(game.StoryCharacter)))
-        {
+        foreach (var reg in SlugcatStats.getSlugcatStoryRegions(game.StoryCharacter).Concat(SlugcatStats.getSlugcatOptionalRegions(game.StoryCharacter))) {
             regions[reg] = Region.GetRegionFullName(reg, game.StoryCharacter);
         }
     }

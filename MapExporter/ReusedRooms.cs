@@ -19,10 +19,8 @@ static class ReusedRooms
         string baseSlugcat = SlugcatFor(slugcat, world.name);
         string key = $"{baseSlugcat}#{world.name}";
 
-        if (baseSlugcat == slugcat)
-        {
-            regions[key] = new()
-            {
+        if (baseSlugcat == slugcat) {
+            regions[key] = new() {
                 settings = validRooms.ToDictionary(
                     keySelector: a => a.name,
                     elementSelector: Settings,
@@ -31,25 +29,20 @@ static class ReusedRooms
             };
             return null;
         }
-        if (!regions.TryGetValue(key, out RegionData regionData))
-        {
+        if (!regions.TryGetValue(key, out RegionData regionData)) {
             MapExporter.Logger.LogWarning($"NOT COPIED | Region settings are not stored for {baseSlugcat}/{world.name} coming from {slugcat}");
             return null;
         }
-        if (regionData.settings.Count != validRooms.Count)
-        {
+        if (regionData.settings.Count != validRooms.Count) {
             MapExporter.Logger.LogWarning($"NOT COPIED | Different room count for {world.name} in {baseSlugcat} and {slugcat}");
             return null;
         }
-        foreach (AbstractRoom room in validRooms)
-        {
-            if (!regionData.settings.TryGetValue(room.name, out RoomSettings existingSettings))
-            {
+        foreach (AbstractRoom room in validRooms) {
+            if (!regionData.settings.TryGetValue(room.name, out RoomSettings existingSettings)) {
                 MapExporter.Logger.LogWarning($"NOT COPIED | The room {room.name} exists for {slugcat} but not {baseSlugcat}");
                 return null;
             }
-            if (!Identical(existingSettings, Settings(room)))
-            {
+            if (!Identical(existingSettings, Settings(room))) {
                 MapExporter.Logger.LogWarning($"NOT COPIED | The room {room.name} is different for {slugcat} and {baseSlugcat}");
                 return null;
             }
@@ -75,47 +68,38 @@ static class ReusedRooms
             return "saint";
         if (region is "rm")
             return "rivulet";
-        //if (region is "ss") // TO BE REMOVED
-        //    return "inv"; // TEMPORARY
         return "white";
     }
 
     static bool Identical(RoomSettings one, RoomSettings two)
     {
-        if (ReferenceEquals(one, two))
-        {
+        if (ReferenceEquals(one, two)) {
             return true;
         }
-        if (one.name.StartsWith("GATE") && two.name.StartsWith("GATE"))
-        {
+        if (one.name.StartsWith("GATE") && two.name.StartsWith("GATE")) {
             // This is a hack to fix gates. For some reason gates and gates *specifically* change constantly between slugcats.
             return true;
         }
-        if (one == null || two == null)
-        {
+        if (one == null || two == null) {
             return false;
         }
         bool p1 = one.isAncestor == two.isAncestor && one.isTemplate == two.isTemplate && one.clds == two.clds && one.swAmp == two.swAmp && one.swLength == two.swLength &&
             one.wAmp == two.wAmp && one.wetTerrain == two.wetTerrain && one.eColA == two.eColA && one.eColB == two.eColB && one.grm == two.grm && one.pal == two.pal &&
             one.wtrRflctAlpha == two.wtrRflctAlpha;
-        if (!p1)
-        {
+        if (!p1) {
             return false;
         }
         bool fadePalettesMatch = one.fadePalette == null && two.fadePalette == null ||
             one.fadePalette != null && two.fadePalette != null && one.fadePalette.palette == two.fadePalette.palette && one.fadePalette.fades.SequenceEqual(two.fadePalette.fades);
-        if (!fadePalettesMatch)
-        {
+        if (!fadePalettesMatch) {
             return false;
         }
         bool effectsMatch = one.effects.Select(e => e.ToString()).SequenceEqual(two.effects.Select(e => e.ToString()));
-        if (!effectsMatch)
-        {
+        if (!effectsMatch) {
             return false;
         }
         bool placedObjectsMatch = one.placedObjects.Select(p => p.ToString()).SequenceEqual(two.placedObjects.Select(p => p.ToString()));
-        if (!placedObjectsMatch)
-        {
+        if (!placedObjectsMatch) {
             return false;
         }
         return Identical(one.parent, two.parent);

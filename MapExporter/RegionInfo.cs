@@ -15,10 +15,7 @@ sealed class RegionInfo : IJsonObject
     readonly List<Color> fgcolors;
     readonly List<Color> bgcolors;
     readonly List<Color> sccolors;
-    readonly HashSet<string> worldConditionalLinks;
-    readonly HashSet<string> worldCreatures;
-    readonly HashSet<string> worldRoomTags;
-    readonly HashSet<string> worldBatMigrationBlockages;
+    readonly HashSet<string> worldSpawns;
 
     public string copyRooms;
 
@@ -33,14 +30,12 @@ sealed class RegionInfo : IJsonObject
         bgcolors = new List<Color>();
         sccolors = new List<Color>();
 
-        worldConditionalLinks = new HashSet<string>();
-        worldRoomTags = new HashSet<string>();
-        worldCreatures = new HashSet<string>();
-        worldBatMigrationBlockages = new HashSet<string>();
+        worldSpawns = new HashSet<string>();
 
         LoadMapConfig(world);
-        LoadWorldConfig(world);
+        LoadSpawns(world);
     }
+
     private RoomEntry GetOrCreateRoomEntry(string name)
     {
         return rooms.TryGetValue(name, out var value) ? value : rooms[name] = new(name);
@@ -52,85 +47,46 @@ sealed class RegionInfo : IJsonObject
             $"World{Path.DirectorySeparatorChar}{world.name}{Path.DirectorySeparatorChar}map_{world.name}-{world.game.GetStorySession.saveState.saveStateNumber}.txt"
             );
 
-        if (!File.Exists(path))
-        {
+        if (!File.Exists(path)) {
             path = AssetManager.ResolveFilePath(
                 $"World{Path.DirectorySeparatorChar}{world.name}{Path.DirectorySeparatorChar}map_{world.name}.txt"
                 );
         }
 
-        if (!File.Exists(path))
-        {
+        if (!File.Exists(path)) {
             MapExporter.Logger.LogWarning($"No map data for {world.game.StoryCharacter}/{world.name} at {path}");
         }
-        else
-        {
+        else {
             MapExporter.Logger.LogDebug($"Found map data for {world.game.StoryCharacter}/{world.name} at {path}");
 
             string[] contents = File.ReadAllLines(path);
 
-            foreach (string s in contents)
-            {
+            foreach (string s in contents) {
                 string[] split = Regex.Split(s, ": ");
                 string sname = split[0];
 
-                if (sname == "Connection")
-                {
+                if (sname == "Connection") {
                     connections.Add(new ConnectionEntry(split[1]));
                 }
-                else if (!MapExporter.HiddenRoom(world.GetAbstractRoom(sname)))
-                {
+                else if (!MapExporter.HiddenRoom(world.GetAbstractRoom(sname))) {
                     GetOrCreateRoomEntry(sname).ParseEntry(split[1]);
                 }
             }
         }
     }
 
-    private void LoadWorldConfig(World world)
+    private void LoadSpawns(World world)
     {
         string acronym = world.region.name;
         string path = AssetManager.ResolveFilePath($"world/{acronym}/world_{acronym}.txt");
-        if (File.Exists(path))
-        {
-            AssimilateConditionalLinks(File.ReadAllLines(path));
-            AssimilateRoomTags(File.ReadAllLines(path));
+        if (File.Exists(path)) {
             AssimilateCreatures(File.ReadAllLines(path));
-            AssimilateBatMigrationBlockages(File.ReadAllLines(path));
         }
-        else
-        {
+        else {
             MapExporter.Logger.LogError($"WORLD FILE DOES NOT EXIST: {path}");
         }
     }
 
-    private void AssimilateConditionalLinks(IEnumerable<string> raw)
-    {
-        bool insideofconditionallinks = false;
-        foreach (var item in raw)
-        {
-            if (item == "CONDITIONAL LINKS") insideofconditionallinks = true;
-            else if (item == "END CONDITIONAL LINKS") insideofconditionallinks = false;
-            else if (insideofconditionallinks)
-            {
-                if (string.IsNullOrEmpty(item) || item.StartsWith("//")) continue;
-                worldConditionalLinks.Add(item);
-            }
-        }
-    }
-    private void AssimilateRoomTags(IEnumerable<string> raw)
-    {
-        bool insideofrooms = false;
-        foreach (var item in raw)
-        {
-            if (item == "ROOMS") insideofrooms = true;
-            else if (item == "END ROOMS") insideofrooms = false;
-            else if (insideofrooms)
-            {
-                if (string.IsNullOrEmpty(item) || item.StartsWith("//")) continue;
-                worldRoomTags.Add(item);
-            }
-        }
-    }
     private void AssimilateCreatures(IEnumerable<string> raw)
     {
         bool insideofcreatures = false;
@@ -141,28 +97,14 @@ sealed class RegionInfo : IJsonObject
             else if (insideofcreatures)
             {
                 if (string.IsNullOrEmpty(item) || item.StartsWith("//")) continue;
-                worldCreatures.Add(item);
-            }
-        }
-    }
-    private void AssimilateBatMigrationBlockages(IEnumerable<string> raw)
-    {
-        bool insideofbatmigration = false;
-        foreach (var item in raw)
-        {
-            if (item == "BAT MIGRATION BLOCKAGES") insideofbatmigration = true;
-            else if (item == "END BAT MIGRATION BLOCKAGES") insideofbatmigration = false;
-            else if (insideofbatmigration)
-            {
-                if (string.IsNullOrEmpty(item) || item.StartsWith("//")) continue;
-                worldBatMigrationBlockages.Add(item);
+                worldSpawns.Add(item);
             }
         }
     }
 
     static float[] Vec2arr(Vector2 vec) => new float[] { vec.x, vec.y };
     static float[] Vec2arr(Vector3 vec) => new float[] { vec.x, vec.y, vec.z };
-    static int[] Intvec2arr(IntVector2 vec) => new int[] { vec.x, vec.y };
+    static int[] Intvec2arr(IntVector2 vec) => new int[] { vec.x, vec.y};
 
     public void UpdateRoom(Room room)
     {
@@ -171,26 +113,20 @@ sealed class RegionInfo : IJsonObject
 
     public Dictionary<string, object> ToJson()
     {
-        var ret = new Dictionary<string, object>
-        {
+        var ret = new Dictionary<string, object> {
             ["acronym"] = acronym,
             ["fgcolors"] = (from s in fgcolors select Vec2arr((Vector3)(Vector4)s)).ToList(),
             ["bgcolors"] = (from s in bgcolors select Vec2arr((Vector3)(Vector4)s)).ToList(),
             ["sccolors"] = (from s in sccolors select Vec2arr((Vector3)(Vector4)s)).ToList()
         };
-        if (copyRooms == null)
-        {
+        if (copyRooms == null) {
             ret["rooms"] = rooms;
             ret["connections"] = connections;
         }
-        else
-        {
+        else {
             ret["copyRooms"] = copyRooms;
         }
-        ret["conditionallinks"] = worldConditionalLinks.ToArray();
-        ret["roomtags"] = worldRoomTags.ToArray();
-        ret["creatures"] = worldCreatures.ToArray();
-        ret["batmigrationblockages"] = worldBatMigrationBlockages.ToArray();
+        ret["spawns"] = worldSpawns.ToArray();
         return ret;
     }
 
@@ -203,6 +139,7 @@ sealed class RegionInfo : IJsonObject
         fgcolors.Add(fg);
         bgcolors.Add(bg);
         sccolors.Add(sc);
+
     }
 
     sealed class RoomEntry : IJsonObject
@@ -237,7 +174,6 @@ sealed class RegionInfo : IJsonObject
         private int[] size;
         private int[,][] tiles;
         private IntVector2[] nodes;
-        private IntVector2[] shortcuts;
 
         public void UpdateEntry(Room room)
         {
@@ -252,12 +188,11 @@ sealed class RegionInfo : IJsonObject
                 {
                     // Dont like either available formats ?
                     // Invent a new format
-                    tiles[k, l] = new int[] { (int)room.Tiles[k, l].Terrain, (room.Tiles[k, l].verticalBeam ? 2 : 0) + (room.Tiles[k, l].horizontalBeam ? 1 : 0), (int)room.Tiles[k, l].shortCut };
+                    tiles[k, l] = new int[] { (int)room.Tiles[k, l].Terrain, (room.Tiles[k, l].verticalBeam ? 2:0) + (room.Tiles[k, l].horizontalBeam ? 1:0), (int)room.Tiles[k, l].shortCut};
                     //terain, vb+hb, sc
                 }
             }
             nodes = room.exitAndDenIndex;
-            shortcuts = room.shortcutsIndex;
         }
 
         // wish there was a better way to do this
@@ -272,7 +207,6 @@ sealed class RegionInfo : IJsonObject
                 { "subregion", subregion },
                 { "cameras", cameras != null ? (from c in cameras select Vec2arr(c)).ToArray() : null},
                 { "nodes", nodes != null ? (from n in nodes select Intvec2arr(n)).ToArray() : null},
-                { "shortcuts", shortcuts != null ? (from n in nodes select Intvec2arr(n)).ToArray() : null},
                 { "size", size},
                 { "tiles", tiles},
             };
