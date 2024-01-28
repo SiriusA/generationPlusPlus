@@ -11,6 +11,7 @@ sealed class SlugcatFile : IJsonObject
 
     public void AddCurrentSlugcat(RainWorldGame game)
     {
+        if (scugs.ContainsKey(game.StoryCharacter.value.ToLower())) return;
         scugs[game.StoryCharacter.value.ToLower()] = new Slugcat(game);
     }
 

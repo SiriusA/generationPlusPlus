@@ -1,15 +1,17 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Security.Permissions;
-using System.IO;
-using RWCustom;
-using UnityEngine;
-using MonoMod.RuntimeDetour;
-using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using BepInEx;
 using BepInEx.Logging;
-using System.Text.RegularExpressions;
+using MonoMod.RuntimeDetour;
+using UnityEngine;
+using MoreSlugcats;
+using RWCustom;
 using Random = UnityEngine.Random;
+using System.Diagnostics;
 
 #pragma warning disable CS0618 // Type or member is obsolete
 [assembly: SecurityPermission(SecurityAction.RequestMinimum, SkipVerification = true)]
@@ -21,7 +23,7 @@ namespace MapExporter;
 sealed class MapExporter : BaseUnityPlugin
 {
     // Config
-    static readonly string[] captureSpecific = { }; // For example, "White;SU" loads Outskirts as Survivor
+    static List<(string, string)> captureSpecific = new(); // For example, "White;SU" loads Outskirts as Survivor
     static readonly bool screenshots = true;
 
     static readonly Dictionary<string, int[]> blacklistedCams = new()
@@ -74,6 +76,34 @@ sealed class MapExporter : BaseUnityPlugin
         Logger.LogDebug("Started start thingy");
         try
         {
+            string configPath = Custom.LegacyRootFolderDirectory() + "MapExportConfig.txt";
+            if (File.Exists(configPath))
+            {
+                captureSpecific = File.ReadAllLines(configPath)
+                    .Select(str => {
+                        string[] split = str.Split(';');
+                        return (split[0], split[1]);
+                    })
+                    .ToList();
+            }
+            else
+            {
+                // Iterate over each region on each slugcat
+                foreach (string slugcatName in SlugcatStats.Name.values.entries.OrderByDescending(ScugPriority))
+                {
+                    SlugcatStats.Name slugcat = new(slugcatName);
+
+                    if ((!ModManager.MSC || slugcat != MoreSlugcatsEnums.SlugcatStatsName.Sofanthiel) && SlugcatStats.HiddenOrUnplayableSlugcat(slugcat))
+                    {
+                        continue;
+                    }
+
+                    foreach (var region in SlugcatStats.getSlugcatStoryRegions(slugcat).Concat(SlugcatStats.getSlugcatOptionalRegions(slugcat)))
+                    {
+                        captureSpecific.Add((slugcatName, region));
+                    }
+                }
+            }
             On.Json.Serializer.SerializeValue += Serializer_SerializeValue;
             On.RainWorld.LoadSetupValues += RainWorld_LoadSetupValues;
             On.RainWorld.Update += RainWorld_Update;
@@ -388,6 +418,7 @@ sealed class MapExporter : BaseUnityPlugin
             "artificer" => 9,   // do Artificer next, they have Metropolis, Waterfront Facility, and past-GW
             "saint" => 8,       // do Saint next for Undergrowth and Silent Construct
             "rivulet" => 7,     // do Rivulet for The Rot
+            "sofanthiel" => 6,  // do Inv because inv
             _ => 0              // everyone else has a mix of duplicate rooms
         };
     }
@@ -409,18 +440,43 @@ sealed class MapExporter : BaseUnityPlugin
 
         SlugcatFile slugcatsJson = new();
 
-        if (captureSpecific?.Length > 0) {
-            foreach (var capture in captureSpecific) {
-                SlugcatStats.Name slugcat = new(capture.Split(';')[0]);
+        // Recreate scuglat list from last time if needed
+        string progressPath = Custom.LegacyRootFolderDirectory() + "MapExportProgress.txt";
+        if (File.Exists(progressPath))
+        {
+            foreach (string scug in File.ReadAllLines(progressPath))
+            {
+                SlugcatStats.Name slugcat = new(scug);
 
                 game.GetStorySession.saveStateNumber = slugcat;
                 game.GetStorySession.saveState.saveStateNumber = slugcat;
 
                 slugcatsJson.AddCurrentSlugcat(game);
-
-                foreach (var step in CaptureRegion(game, region: capture.Split(';')[1]))
-                    yield return step;
             }
+        }
+
+
+        bool resetMemory = false;
+        Process proc = Process.GetCurrentProcess();
+        foreach (var capture in captureSpecific) {
+            SlugcatStats.Name slugcat = new(capture.Item1);
+
+            game.GetStorySession.saveStateNumber = slugcat;
+            game.GetStorySession.saveState.saveStateNumber = slugcat;
+
+            slugcatsJson.AddCurrentSlugcat(game);
+
+            foreach (var step in CaptureRegion(game, region: capture.Item2))
+                yield return step;
+
+            // Stop early if we're low on memory
+            proc.Refresh();
+            if (proc.PrivateMemorySize64 >= 0x2_500_000_000L) // 2.5GB
+            {
+                resetMemory = true;
+            }
+        }
+        /*if (captureSpecific?.Length > 0) {
         }
         else {
             // Iterate over each region on each slugcat
@@ -441,7 +497,7 @@ sealed class MapExporter : BaseUnityPlugin
                         yield return step;
                 }
             }
-        }
+        }*/
 
         File.WriteAllText(PathOfSlugcatData(), Json.Serialize(slugcatsJson));
 
@@ -449,10 +505,8 @@ sealed class MapExporter : BaseUnityPlugin
         Application.Quit();
     }
 
-    bool needsToUpdate = true;
     private System.Collections.IEnumerable CaptureRegion(RainWorldGame game, string region)
     {
-        needsToUpdate = true;
         SlugcatStats.Name slugcat = game.StoryCharacter;
 
         // load region
@@ -493,18 +547,6 @@ sealed class MapExporter : BaseUnityPlugin
 
         // load room
         game.overWorld.activeWorld.loadingRooms.Clear();
-        if (needsToUpdate)
-        {
-            needsToUpdate = false;
-            room.world.game.soundLoader.ReleaseAllUnityAudio();
-            var maptexs = room.world.game.rainWorld.progression.mapDiscoveryTextures;
-            foreach (var texture in maptexs.Values)
-            {
-                Destroy(texture);
-            }
-            maptexs.Clear();
-            AssetManager.HardCleanFutileAssets();
-        }
         Random.InitState(0);
         game.overWorld.activeWorld.ActivateRoom(room);
         // load room until it is loaded
