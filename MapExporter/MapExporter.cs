@@ -43,10 +43,10 @@ sealed class MapExporter : BaseUnityPlugin
     {
         "HC"
     };
-    /*public static readonly Dictionary<SlugcatStats.Name, List<string>> RegionOverrides = new()
+    public static readonly Dictionary<string, List<string>> SpecificRegionOverrides = new()
     {
         //
-    };*/
+    };
 
     public static bool NotHiddenRoom(AbstractRoom room) => !HiddenRoom(room);
     public static bool HiddenRoom(AbstractRoom room)
@@ -54,7 +54,7 @@ sealed class MapExporter : BaseUnityPlugin
         if (room == null) {
             return true;
         }
-        if (room.world.DisabledMapRooms.Contains(room.name, System.StringComparer.InvariantCultureIgnoreCase)) {
+        if (room.world.DisabledMapRooms.Contains(room.name, StringComparer.InvariantCultureIgnoreCase)) {
             Logger.LogDebug($"Room {room.world.game.StoryCharacter}/{room.name} is disabled");
             return true;
         }
@@ -471,7 +471,7 @@ sealed class MapExporter : BaseUnityPlugin
             "artificer" => 9,   // do Artificer next, they have Metropolis, Waterfront Facility, and past-GW
             "saint" => 8,       // do Saint next for Undergrowth and Silent Construct
             "rivulet" => 7,     // do Rivulet for The Rot
-            "sofanthiel" => 6,  // do Inv because inv
+            "inv" => 6,         // do Inv because inv
             _ => 0              // everyone else has a mix of duplicate rooms
         };
     }
@@ -509,6 +509,14 @@ sealed class MapExporter : BaseUnityPlugin
                     // Make sure region exists
                     if (Region.GetFullRegionOrder().Contains(region))
                         captureSpecific.Enqueue((slugcatName, region));
+                }
+                if (SpecificRegionOverrides.ContainsKey(slugcatName))
+                {
+                    foreach (string region in SpecificRegionOverrides[slugcatName])
+                    {
+                        if (Region.GetFullRegionOrder().Contains(region))
+                            captureSpecific.Enqueue((slugcatName, region));
+                    }
                 }
             }
         }
