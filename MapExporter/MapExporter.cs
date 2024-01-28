@@ -505,7 +505,7 @@ sealed class MapExporter : BaseUnityPlugin
         if (resetMemory)
         {
             string configPath = Custom.LegacyRootFolderDirectory() + "MapExportConfig.txt";
-            File.WriteAllLines(configPath, captureSpecific.Select(tuple => tuple.Item1 + ";" + tuple.Item2);
+            File.WriteAllLines(configPath, captureSpecific.Select(tuple => tuple.Item1 + ";" + tuple.Item2));
             File.WriteAllLines(progressPath, slugcatsJson.ToJson().Keys);
             Process newproc = new();
             newproc.StartInfo.FileName = Custom.LegacyRootFolderDirectory() + "RainWorld.exe";
