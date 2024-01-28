@@ -24,6 +24,7 @@ namespace MapExporter;
 sealed class MapExporter : BaseUnityPlugin
 {
     // Config
+    const int NUM_REGIONS_BEFORE_RESET = 5;
     static Queue<(string, string)> captureSpecific = new(); // For example, "White;SU" loads Outskirts as Survivor
     static readonly bool screenshots = true;
 
@@ -438,9 +439,8 @@ sealed class MapExporter : BaseUnityPlugin
             }
         }
 
-
         bool resetMemory = false;
-        Process proc = Process.GetCurrentProcess();
+        int reg = 0;
         while (captureSpecific.Count > 0)
         {
             var capture = captureSpecific.Dequeue();
@@ -455,10 +455,11 @@ sealed class MapExporter : BaseUnityPlugin
                 yield return step;
 
             // Stop early if we're low on memory
-            proc.Refresh();
-            if (proc.PrivateMemorySize64 >= 02_500_000_000L) // 2.5GB
+            reg++;
+            if (reg >= NUM_REGIONS_BEFORE_RESET)
             {
                 resetMemory = true;
+                break;
             }
         }
         /*if (captureSpecific?.Length > 0) {
