@@ -425,6 +425,7 @@ sealed class MapExporter : BaseUnityPlugin
         SlugcatFile slugcatsJson = new();
 
         // Recreate scuglat list from last time if needed
+        string configPath = Custom.LegacyRootFolderDirectory() + "MapExportConfig.txt";
         string progressPath = Custom.LegacyRootFolderDirectory() + "MapExportProgress.txt";
         if (File.Exists(progressPath))
         {
@@ -453,6 +454,14 @@ sealed class MapExporter : BaseUnityPlugin
 
             foreach (var step in CaptureRegion(game, region: capture.Item2))
                 yield return step;
+
+            // Save progress
+            File.WriteAllLines(configPath, captureSpecific.Select(tuple => tuple.Item1 + ";" + tuple.Item2));
+            File.WriteAllLines(progressPath, slugcatsJson.ToJson().Keys);
+
+            // Memory stuff
+            AssetManager.HardCleanFutileAssets();
+            GC.Collect();
 
             // Stop early if we're low on memory
             reg++;
@@ -485,19 +494,30 @@ sealed class MapExporter : BaseUnityPlugin
             }
         }*/
 
+        string pyPath = Custom.LegacyRootFolderDirectory() + "MapExportReopen.py";
         if (resetMemory)
         {
-            string configPath = Custom.LegacyRootFolderDirectory() + "MapExportConfig.txt";
-            File.WriteAllLines(configPath, captureSpecific.Select(tuple => tuple.Item1 + ";" + tuple.Item2));
-            File.WriteAllLines(progressPath, slugcatsJson.ToJson().Keys);
-            Process newproc = new();
-            newproc.StartInfo.FileName = Custom.LegacyRootFolderDirectory() + "RainWorld.exe";
-            newproc.Start();
+            /*File.WriteAllLines(pyPath, new string[]
+            {
+                "import subprocess",
+                "import time",
+                "time.sleep(5)",
+                $"subprocess.run([\"{Custom.LegacyRootFolderDirectory() + "RainWorld.exe"}\"])"
+            });*/
+            File.WriteAllLines(pyPath, new string[]
+            {
+                "import webbrowser",
+                "import time",
+                "time.sleep(5)",
+                $"webbrowser.open(\"steam://rungameid/312520\")"
+            });
+            Process.Start("CMD.exe", "/C python \"" + pyPath + "\"");
             Application.Quit();
         }
         else
         {
             if (File.Exists(progressPath)) File.Delete(progressPath);
+            if (File.Exists(pyPath)) File.Delete(pyPath);
             File.WriteAllText(PathOfSlugcatData(), Json.Serialize(slugcatsJson));
 
             Logger.LogDebug("capture task done!");
