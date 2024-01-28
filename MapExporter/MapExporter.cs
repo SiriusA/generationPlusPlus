@@ -24,7 +24,7 @@ namespace MapExporter;
 sealed class MapExporter : BaseUnityPlugin
 {
     // Config
-    static List<(string, string)> captureSpecific = new(); // For example, "White;SU" loads Outskirts as Survivor
+    static Queue<(string, string)> captureSpecific = new(); // For example, "White;SU" loads Outskirts as Survivor
     static readonly bool screenshots = true;
 
     static readonly Dictionary<string, int[]> blacklistedCams = new()
@@ -80,29 +80,10 @@ sealed class MapExporter : BaseUnityPlugin
             string configPath = Custom.LegacyRootFolderDirectory() + "MapExportConfig.txt";
             if (File.Exists(configPath))
             {
-                captureSpecific = File.ReadAllLines(configPath)
-                    .Select(str => {
-                        string[] split = str.Split(';');
-                        return (split[0], split[1]);
-                    })
-                    .ToList();
-            }
-            else
-            {
-                // Iterate over each region on each slugcat
-                foreach (string slugcatName in SlugcatStats.Name.values.entries.OrderByDescending(ScugPriority))
+                foreach (string line in File.ReadAllLines(configPath))
                 {
-                    SlugcatStats.Name slugcat = new(slugcatName);
-
-                    if ((!ModManager.MSC || slugcat != MoreSlugcatsEnums.SlugcatStatsName.Sofanthiel) && SlugcatStats.HiddenOrUnplayableSlugcat(slugcat))
-                    {
-                        continue;
-                    }
-
-                    foreach (var region in SlugcatStats.getSlugcatStoryRegions(slugcat).Concat(SlugcatStats.getSlugcatOptionalRegions(slugcat)))
-                    {
-                        captureSpecific.Add((slugcatName, region));
-                    }
+                    string[] split = line.Split(';');
+                    captureSpecific.Enqueue((split[0], split[1]));
                 }
             }
             On.Json.Serializer.SerializeValue += Serializer_SerializeValue;
@@ -127,7 +108,6 @@ sealed class MapExporter : BaseUnityPlugin
             On.AntiGravity.BrokenAntiGravity.ctor += BrokenAntiGravity_ctor;
             On.GateKarmaGlyph.DrawSprites += GateKarmaGlyph_DrawSprites;
             On.WorldLoader.ctor_RainWorldGame_Name_bool_string_Region_SetupValues += WorldLoader_ctor_RainWorldGame_Name_bool_string_Region_SetupValues;
-            On.SoundLoader.ReleaseAllUnityAudio += SoundLoader_ReleaseAllUnityAudio;
             Logger.LogDebug("Finished start thingy");
         }
         catch (Exception e)
@@ -136,22 +116,6 @@ sealed class MapExporter : BaseUnityPlugin
             Debug.LogException(e);
         }
 
-        orig(self);
-    }
-
-    private void SoundLoader_ReleaseAllUnityAudio(On.SoundLoader.orig_ReleaseAllUnityAudio orig, SoundLoader self)
-    {
-        if (self.assetBundlesLoaded)
-        {
-            for (int i = 0; i < self.unityAudio.Length; i++)
-            {
-                if (self.unityAudio[i] == null || self.unityAudioCached[i]) continue;
-                for (int j = 0; j < self.unityAudio[i].Length; j++)
-                {
-                    Destroy(self.unityAudio[i][j]);
-                }
-            }
-        }
         orig(self);
     }
 
@@ -432,6 +396,24 @@ sealed class MapExporter : BaseUnityPlugin
         Logger.LogDebug("capture task start");
         Random.InitState(0);
 
+        if (captureSpecific.Count == 0)
+        {
+            foreach (string slugcatName in SlugcatStats.Name.values.entries.OrderByDescending(ScugPriority))
+            {
+                SlugcatStats.Name slugcat = new(slugcatName);
+
+                if ((!ModManager.MSC || slugcat != MoreSlugcatsEnums.SlugcatStatsName.Sofanthiel) && SlugcatStats.HiddenOrUnplayableSlugcat(slugcat))
+                {
+                    continue;
+                }
+
+                foreach (string region in SlugcatStats.getSlugcatStoryRegions(slugcat).Concat(SlugcatStats.getSlugcatOptionalRegions(slugcat)))
+                {
+                    captureSpecific.Enqueue((slugcatName, region));
+                }
+            }
+        }
+
         // 1st camera transition is a bit whack ? give it a sec to load
         //while (game.cameras[0].www != null) yield return null;
         while (game.cameras[0].room == null || !game.cameras[0].room.ReadyForPlayer) yield return null;
@@ -461,7 +443,7 @@ sealed class MapExporter : BaseUnityPlugin
         Process proc = Process.GetCurrentProcess();
         while (captureSpecific.Count > 0)
         {
-            var capture = captureSpecific.Pop();
+            var capture = captureSpecific.Dequeue();
             SlugcatStats.Name slugcat = new(capture.Item1);
 
             game.GetStorySession.saveStateNumber = slugcat;
