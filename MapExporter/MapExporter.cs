@@ -13,6 +13,8 @@ using RWCustom;
 using Random = UnityEngine.Random;
 using System.Diagnostics;
 using Debug = UnityEngine.Debug;
+using MonoMod.Cil;
+using Mono.Cecil.Cil;
 
 #pragma warning disable CS0618 // Type or member is obsolete
 [assembly: SecurityPermission(SecurityAction.RequestMinimum, SkipVerification = true)]
@@ -25,7 +27,7 @@ sealed class MapExporter : BaseUnityPlugin
 {
     // Config
     const int NUM_REGIONS_BEFORE_RESET = 5;
-    static Queue<(string, string)> captureSpecific = new(); // For example, "White;SU" loads Outskirts as Survivor
+    static readonly Queue<(string, string)> captureSpecific = new() { }; // For example, "White;SU" loads Outskirts as Survivor
     static readonly bool screenshots = true;
 
     static readonly Dictionary<string, int[]> blacklistedCams = new()
@@ -121,6 +123,8 @@ sealed class MapExporter : BaseUnityPlugin
             On.ScavengersWorldAI.WorldFloodFiller.Update += WorldFloodFiller_Update;
             On.CustomDecal.LoadFile += CustomDecal_LoadFile;
             On.CustomDecal.InitiateSprites += CustomDecal_InitiateSprites;
+            On.Menu.DialogBoxNotify.Update += DialogBoxNotify_Update;
+            IL.BubbleGrass.Update += BubbleGrass_Update;
             Logger.LogDebug("Finished start thingy");
         }
         catch (Exception e)
@@ -130,6 +134,46 @@ sealed class MapExporter : BaseUnityPlugin
         }
 
         orig(self);
+    }
+
+    // Fix a crash in inv SS
+    private void BubbleGrass_Update(ILContext il)
+    {
+        // Original code: (base.Submersion >= 0.2f && this.room.waterObject.WaterIsLethal)
+        // Code after hook: (base.Submersion >= 0.2f && this.room.waterObject != null && this.room.waterObject.WaterIsLethal)
+        // You'd think that because it was partially submerged that there would be water but apparently not...
+
+        try
+        {
+            var c = new ILCursor(il);
+            ILLabel brto = null;
+
+            c.GotoNext(
+                MoveType.After,
+                x => x.MatchLdarg(0),
+                x => x.MatchCall<PhysicalObject>("get_Submersion"),
+                x => x.Match(OpCodes.Ldc_R4),
+                x => x.MatchBltUn(out brto)
+            );
+            c.Emit(OpCodes.Ldarg_0);
+            c.EmitDelegate<Func<BubbleGrass, bool>>(self => self.room.waterObject != null);
+            c.Emit(OpCodes.Brfalse, brto);
+        }
+        catch (Exception e)
+        {
+            Logger.LogError("Bubble grass IL hook failed!");
+            Logger.LogError(e);
+        }
+    }
+
+    // Reapply on mod update screen
+    private void DialogBoxNotify_Update(On.Menu.DialogBoxNotify.orig_Update orig, Menu.DialogBoxNotify self)
+    {
+        orig(self);
+        if (self.continueButton.signalText == "REAPPLY")
+        {
+            self.continueButton.Clicked();
+        }
     }
 
 
