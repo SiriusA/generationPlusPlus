@@ -12,6 +12,7 @@ using MoreSlugcats;
 using RWCustom;
 using Random = UnityEngine.Random;
 using System.Diagnostics;
+using Debug = UnityEngine.Debug;
 
 #pragma warning disable CS0618 // Type or member is obsolete
 [assembly: SecurityPermission(SecurityAction.RequestMinimum, SkipVerification = true)]
@@ -458,7 +459,9 @@ sealed class MapExporter : BaseUnityPlugin
 
         bool resetMemory = false;
         Process proc = Process.GetCurrentProcess();
-        foreach (var capture in captureSpecific) {
+        while (captureSpecific.Count > 0)
+        {
+            var capture = captureSpecific.Pop();
             SlugcatStats.Name slugcat = new(capture.Item1);
 
             game.GetStorySession.saveStateNumber = slugcat;
@@ -471,7 +474,7 @@ sealed class MapExporter : BaseUnityPlugin
 
             // Stop early if we're low on memory
             proc.Refresh();
-            if (proc.PrivateMemorySize64 >= 0x2_500_000_000L) // 2.5GB
+            if (proc.PrivateMemorySize64 >= 02_500_000_000L) // 2.5GB
             {
                 resetMemory = true;
             }
@@ -499,10 +502,24 @@ sealed class MapExporter : BaseUnityPlugin
             }
         }*/
 
-        File.WriteAllText(PathOfSlugcatData(), Json.Serialize(slugcatsJson));
+        if (resetMemory)
+        {
+            string configPath = Custom.LegacyRootFolderDirectory() + "MapExportConfig.txt";
+            File.WriteAllLines(configPath, captureSpecific.Select(tuple => tuple.Item1 + ";" + tuple.Item2);
+            File.WriteAllLines(progressPath, slugcatsJson.ToJson().Keys);
+            Process newproc = new();
+            newproc.StartInfo.FileName = Custom.LegacyRootFolderDirectory() + "RainWorld.exe";
+            newproc.Start();
+            Application.Quit();
+        }
+        else
+        {
+            if (File.Exists(progressPath)) File.Delete(progressPath);
+            File.WriteAllText(PathOfSlugcatData(), Json.Serialize(slugcatsJson));
 
-        Logger.LogDebug("capture task done!");
-        Application.Quit();
+            Logger.LogDebug("capture task done!");
+            Application.Quit();
+        }
     }
 
     private System.Collections.IEnumerable CaptureRegion(RainWorldGame game, string region)
