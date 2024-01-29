@@ -26,7 +26,7 @@ namespace MapExporter;
 sealed class MapExporter : BaseUnityPlugin
 {
     // Config
-    const int NUM_REGIONS_BEFORE_RESET = 5;
+    const int NUM_SCREENS_BEFORE_RESET = 500;
     static readonly Queue<(string, string)> captureSpecific = new() { }; // For example, "White;SU" loads Outskirts as Survivor
     static readonly bool screenshots = true;
 
@@ -519,6 +519,7 @@ sealed class MapExporter : BaseUnityPlugin
 
     // Runs half-synchronously to the game loop, bless iters
     System.Collections.IEnumerator captureTask;
+    int capturedScreens = 0;
     private System.Collections.IEnumerator CaptureTask(RainWorldGame game)
     {
         // Task start
@@ -599,7 +600,6 @@ sealed class MapExporter : BaseUnityPlugin
         }
 
         bool resetMemory = false;
-        int reg = 0;
         while (captureSpecific.Count > 0)
         {
             var capture = captureSpecific.Dequeue();
@@ -622,46 +622,16 @@ sealed class MapExporter : BaseUnityPlugin
             GC.Collect();
 
             // Stop early if we're low on memory
-            reg++;
-            if (reg >= NUM_REGIONS_BEFORE_RESET)
+            if (capturedScreens >= NUM_SCREENS_BEFORE_RESET)
             {
                 resetMemory = true;
                 break;
             }
         }
-        /*if (captureSpecific?.Length > 0) {
-        }
-        else {
-            // Iterate over each region on each slugcat
-            foreach (string slugcatName in SlugcatStats.Name.values.entries.OrderByDescending(ScugPriority)) {
-                SlugcatStats.Name slugcat = new(slugcatName);
-
-                if (SlugcatStats.HiddenOrUnplayableSlugcat(slugcat)) {
-                    continue;
-                }
-
-                game.GetStorySession.saveStateNumber = slugcat;
-                game.GetStorySession.saveState.saveStateNumber = slugcat;
-
-                slugcatsJson.AddCurrentSlugcat(game);
-
-                foreach (var region in SlugcatStats.getSlugcatStoryRegions(slugcat).Concat(SlugcatStats.getSlugcatOptionalRegions(slugcat))) {
-                    foreach (var step in CaptureRegion(game, region))
-                        yield return step;
-                }
-            }
-        }*/
 
         string pyPath = Custom.LegacyRootFolderDirectory() + "MapExportReopen.py";
         if (resetMemory)
         {
-            /*File.WriteAllLines(pyPath, new string[]
-            {
-                "import subprocess",
-                "import time",
-                "time.sleep(5)",
-                $"subprocess.run([\"{Custom.LegacyRootFolderDirectory() + "RainWorld.exe"}\"])"
-            });*/
             File.WriteAllLines(pyPath, new string[]
             {
                 "import webbrowser",
@@ -759,6 +729,7 @@ sealed class MapExporter : BaseUnityPlugin
 
         for (int i = 0; i < room.realizedRoom.cameraPositions.Length; i++) {
             // load screen
+            capturedScreens++;
             Random.InitState(room.name.GetHashCode()); // allow for deterministic random numbers, to make rain look less garbage
             game.cameras[0].MoveCamera(i);
             game.cameras[0].virtualMicrophone.AllQuiet();
