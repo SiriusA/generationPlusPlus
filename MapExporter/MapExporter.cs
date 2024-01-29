@@ -1,13 +1,20 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Security.Permissions;
-using System.IO;
-using RWCustom;
-using UnityEngine;
-using MonoMod.RuntimeDetour;
-using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using BepInEx;
 using BepInEx.Logging;
-using System.Text.RegularExpressions;
+using MonoMod.RuntimeDetour;
+using UnityEngine;
+using MoreSlugcats;
+using RWCustom;
+using Random = UnityEngine.Random;
+using System.Diagnostics;
+using Debug = UnityEngine.Debug;
+using MonoMod.Cil;
+using Mono.Cecil.Cil;
 
 #pragma warning disable CS0618 // Type or member is obsolete
 [assembly: SecurityPermission(SecurityAction.RequestMinimum, SkipVerification = true)]
@@ -15,11 +22,12 @@ using System.Text.RegularExpressions;
 
 namespace MapExporter;
 
-[BepInPlugin("io.github.henpemaz-dual", "Map Exporter", "1.0.0")]
+[BepInPlugin("io.github.henpemaz-dual-alduris", "Map Exporter", "1.0.0")]
 sealed class MapExporter : BaseUnityPlugin
 {
     // Config
-    static readonly string[] captureSpecific = { }; // For example, "White;SU" loads Outskirts as Survivor
+    const int NUM_SCREENS_BEFORE_RESET = 500;
+    static readonly Queue<(string, string)> captureSpecific = new() { }; // For example, "White;SU" loads Outskirts as Survivor
     static readonly bool screenshots = true;
 
     static readonly Dictionary<string, int[]> blacklistedCams = new()
@@ -31,13 +39,39 @@ sealed class MapExporter : BaseUnityPlugin
 
     public static new ManualLogSource Logger;
 
+    public static List<string> AllScugsRegionOverrides = new()
+    {
+        "AK",
+        "DP",
+        "HC",
+        "HF",
+        "QW",
+        "RW",
+        "TO",
+        "UF",
+        "WM",
+        "ZZ"
+    };
+    public static readonly Dictionary<string, List<string>> SpecificRegionOverrides = new()
+    {
+        { "white", new() { "TZ" } },
+        { "yellow", new() { "TZ", "XD" } },
+        { "red", new() { "TZ" } },
+        { "gourmand", new() { } },
+        { "artificer", new() { } },
+        { "rivulet", new() { } },
+        { "spear", new() { } },
+        { "saint", new() { "FR", "NF" } },
+        { "inv", new() { "TM" } }
+    };
+
     public static bool NotHiddenRoom(AbstractRoom room) => !HiddenRoom(room);
     public static bool HiddenRoom(AbstractRoom room)
     {
         if (room == null) {
             return true;
         }
-        if (room.world.DisabledMapRooms.Contains(room.name, System.StringComparer.InvariantCultureIgnoreCase)) {
+        if (room.world.DisabledMapRooms.Contains(room.name, StringComparer.InvariantCultureIgnoreCase)) {
             Logger.LogDebug($"Room {room.world.game.StoryCharacter}/{room.name} is disabled");
             return true;
         }
@@ -56,47 +90,162 @@ sealed class MapExporter : BaseUnityPlugin
 
     public void OnEnable()
     {
-        Logger = base.Logger;
-        On.RainWorld.Update += RainWorld_Update1;
-        On.RainWorld.Start += RainWorld_Start; // "FUCK compatibility just run my hooks" - love you too henpemaz
-    }
-
-    private void RainWorld_Update1(On.RainWorld.orig_Update orig, RainWorld self)
-    {
-        try {
-            orig(self);
+        try
+        {
+            Logger = base.Logger;
+            On.RainWorld.Start += RainWorld_Start; // "FUCK compatibility just run my hooks" - love you too henpemaz
         }
-        catch (System.Exception e) {
-            Logger.LogError(e);
+        catch (Exception ex)
+        {
+            Debug.LogException(ex);
         }
     }
 
     private void RainWorld_Start(On.RainWorld.orig_Start orig, RainWorld self)
     {
-        On.Json.Serializer.SerializeValue += Serializer_SerializeValue;
-        On.RainWorld.LoadSetupValues += RainWorld_LoadSetupValues;
-        On.RainWorld.Update += RainWorld_Update;
-        On.World.SpawnGhost += World_SpawnGhost;
-        On.GhostWorldPresence.SpawnGhost += GhostWorldPresence_SpawnGhost;
-        On.GhostWorldPresence.GhostMode_AbstractRoom_Vector2 += GhostWorldPresence_GhostMode_AbstractRoom_Vector2;
-        On.Ghost.Update += Ghost_Update;
-        On.RainWorldGame.ctor += RainWorldGame_ctor;
-        On.RainWorldGame.Update += RainWorldGame_Update;
-        On.RainWorldGame.RawUpdate += RainWorldGame_RawUpdate;
-        new Hook(typeof(RainWorldGame).GetProperty("TimeSpeedFac").GetGetMethod(), typeof(MapExporter).GetMethod("RainWorldGame_ZeroProperty"), this);
-        new Hook(typeof(RainWorldGame).GetProperty("InitialBlackSeconds").GetGetMethod(), typeof(MapExporter).GetMethod("RainWorldGame_ZeroProperty"), this);
-        new Hook(typeof(RainWorldGame).GetProperty("FadeInTime").GetGetMethod(), typeof(MapExporter).GetMethod("RainWorldGame_ZeroProperty"), this);
-        On.OverWorld.WorldLoaded += OverWorld_WorldLoaded;
-        On.Room.ReadyForAI += Room_ReadyForAI;
-        On.Room.Loaded += Room_Loaded;
-        On.Room.ScreenMovement += Room_ScreenMovement;
-        On.RoomCamera.DrawUpdate += RoomCamera_DrawUpdate;
-        On.VoidSpawnGraphics.DrawSprites += VoidSpawnGraphics_DrawSprites;
-        On.AntiGravity.BrokenAntiGravity.ctor += BrokenAntiGravity_ctor;
-        On.GateKarmaGlyph.DrawSprites += GateKarmaGlyph_DrawSprites;
-        On.WorldLoader.ctor_RainWorldGame_Name_bool_string_Region_SetupValues += WorldLoader_ctor_RainWorldGame_Name_bool_string_Region_SetupValues;
+        Logger.LogDebug("Started start thingy");
+        try
+        {
+            string configPath = Custom.LegacyRootFolderDirectory() + "MapExportConfig.txt";
+            if (File.Exists(configPath))
+            {
+                foreach (string line in File.ReadAllLines(configPath))
+                {
+                    string[] split = line.Split(';');
+                    captureSpecific.Enqueue((split[0], split[1]));
+                }
+            }
+            On.Json.Serializer.SerializeValue += Serializer_SerializeValue;
+            On.RainWorld.LoadSetupValues += RainWorld_LoadSetupValues;
+            On.RainWorld.Update += RainWorld_Update;
+            On.World.SpawnGhost += World_SpawnGhost;
+            On.GhostWorldPresence.SpawnGhost += GhostWorldPresence_SpawnGhost;
+            On.GhostWorldPresence.GhostMode_AbstractRoom_Vector2 += GhostWorldPresence_GhostMode_AbstractRoom_Vector2;
+            On.Ghost.Update += Ghost_Update;
+            On.RainWorldGame.ctor += RainWorldGame_ctor;
+            On.RainWorldGame.Update += RainWorldGame_Update;
+            On.RainWorldGame.RawUpdate += RainWorldGame_RawUpdate;
+            new Hook(typeof(RainWorldGame).GetProperty("TimeSpeedFac").GetGetMethod(), typeof(MapExporter).GetMethod("RainWorldGame_ZeroProperty"), this);
+            new Hook(typeof(RainWorldGame).GetProperty("InitialBlackSeconds").GetGetMethod(), typeof(MapExporter).GetMethod("RainWorldGame_ZeroProperty"), this);
+            new Hook(typeof(RainWorldGame).GetProperty("FadeInTime").GetGetMethod(), typeof(MapExporter).GetMethod("RainWorldGame_ZeroProperty"), this);
+            On.OverWorld.WorldLoaded += OverWorld_WorldLoaded;
+            On.Room.ReadyForAI += Room_ReadyForAI;
+            On.Room.Loaded += Room_Loaded;
+            On.Room.ScreenMovement += Room_ScreenMovement;
+            On.RoomCamera.DrawUpdate += RoomCamera_DrawUpdate;
+            On.VoidSpawnGraphics.DrawSprites += VoidSpawnGraphics_DrawSprites;
+            On.AntiGravity.BrokenAntiGravity.ctor += BrokenAntiGravity_ctor;
+            On.GateKarmaGlyph.DrawSprites += GateKarmaGlyph_DrawSprites;
+            On.WorldLoader.ctor_RainWorldGame_Name_bool_string_Region_SetupValues += WorldLoader_ctor_RainWorldGame_Name_bool_string_Region_SetupValues;
+            On.ScavengersWorldAI.WorldFloodFiller.Update += WorldFloodFiller_Update;
+            On.CustomDecal.LoadFile += CustomDecal_LoadFile;
+            On.CustomDecal.InitiateSprites += CustomDecal_InitiateSprites;
+            On.Menu.DialogBoxNotify.Update += DialogBoxNotify_Update;
+            IL.BubbleGrass.Update += BubbleGrass_Update;
+            On.MoreSlugcats.BlinkingFlower.DrawSprites += BlinkingFlower_DrawSprites;
+            On.RoomCamera.ApplyEffectColorsToPaletteTexture += RoomCamera_ApplyEffectColorsToPaletteTexture;
+            Logger.LogDebug("Finished start thingy");
+        }
+        catch (Exception e)
+        {
+            Logger.LogDebug("Caught start thingy");
+            Debug.LogException(e);
+        }
 
         orig(self);
+    }
+
+    // Fixes some crashes in ZZ (Aerial Arrays)
+    private void RoomCamera_ApplyEffectColorsToPaletteTexture(On.RoomCamera.orig_ApplyEffectColorsToPaletteTexture orig, RoomCamera self, ref Texture2D texture, int color1, int color2)
+    {
+        color1 = Math.Min(color1, 21);
+        color2 = Math.Min(color2, 21);
+        orig(self, ref texture, color1, color2);
+    }
+    private void BlinkingFlower_DrawSprites(On.MoreSlugcats.BlinkingFlower.orig_DrawSprites orig, BlinkingFlower self, RoomCamera.SpriteLeaser sLeaser, RoomCamera rCam, float timeStacker, Vector2 camPos)
+    {
+        if (self.room == null)
+        {
+            foreach (var sprite in sLeaser.sprites)
+            {
+                sprite.isVisible = false;
+            }
+        }
+        else
+        {
+            orig(self, sLeaser, rCam, timeStacker, camPos);
+        }
+    }
+
+    // Fix a crash in inv SS
+    private void BubbleGrass_Update(ILContext il)
+    {
+        // Original code: (base.Submersion >= 0.2f && this.room.waterObject.WaterIsLethal)
+        // Code after hook: (base.Submersion >= 0.2f && this.room.waterObject != null && this.room.waterObject.WaterIsLethal)
+        // You'd think that because it was partially submerged that there would be water but apparently not...
+
+        try
+        {
+            var c = new ILCursor(il);
+            ILLabel brto = null;
+
+            c.GotoNext(
+                MoveType.After,
+                x => x.MatchLdarg(0),
+                x => x.MatchCall<PhysicalObject>("get_Submersion"),
+                x => x.Match(OpCodes.Ldc_R4),
+                x => x.MatchBltUn(out brto)
+            );
+            c.Emit(OpCodes.Ldarg_0);
+            c.EmitDelegate<Func<BubbleGrass, bool>>(self => self.room.waterObject != null);
+            c.Emit(OpCodes.Brfalse, brto);
+        }
+        catch (Exception e)
+        {
+            Logger.LogError("Bubble grass IL hook failed!");
+            Logger.LogError(e);
+        }
+    }
+
+    // Reapply on mod update screen
+    private void DialogBoxNotify_Update(On.Menu.DialogBoxNotify.orig_Update orig, Menu.DialogBoxNotify self)
+    {
+        orig(self);
+        if (self.continueButton.signalText == "REAPPLY")
+        {
+            self.continueButton.Clicked();
+        }
+    }
+
+
+    // prevents a crash when a decal isn't loaded by pretending it doesn't exist and hiding it
+    private void CustomDecal_LoadFile(On.CustomDecal.orig_LoadFile orig, CustomDecal self, string fileName)
+    {
+        try
+        {
+            orig(self, fileName);
+        }
+        catch (FileLoadException e)
+        {
+            Logger.LogError(e);
+            (self.placedObject.data as PlacedObject.CustomDecalData).imageName = "PH";
+            orig(self, "PH");
+            // PH is the default image that you see when you place a custom decal into the world. It's just a white box with a thick red X and border in it.
+        }
+    }
+    private void CustomDecal_InitiateSprites(On.CustomDecal.orig_InitiateSprites orig, CustomDecal self, RoomCamera.SpriteLeaser sLeaser, RoomCamera rCam)
+    {
+        orig(self, sLeaser, rCam);
+        if ((self.placedObject.data as PlacedObject.CustomDecalData).imageName == "PH")
+        {
+            sLeaser.sprites[0].isVisible = false;
+        }
+    }
+
+    // prevents a crash with broken connections (scavengers don't need their ai in this)
+    private void WorldFloodFiller_Update(On.ScavengersWorldAI.WorldFloodFiller.orig_Update orig, ScavengersWorldAI.WorldFloodFiller self)
+    {
+        self.finished = true;
     }
 
     private void Serializer_SerializeValue(On.Json.Serializer.orig_SerializeValue orig, Json.Serializer self, object value)
@@ -363,17 +512,67 @@ sealed class MapExporter : BaseUnityPlugin
             "artificer" => 9,   // do Artificer next, they have Metropolis, Waterfront Facility, and past-GW
             "saint" => 8,       // do Saint next for Undergrowth and Silent Construct
             "rivulet" => 7,     // do Rivulet for The Rot
+            "inv" => 6,         // do Inv because inv
             _ => 0              // everyone else has a mix of duplicate rooms
         };
     }
 
     // Runs half-synchronously to the game loop, bless iters
     System.Collections.IEnumerator captureTask;
+    int capturedScreens = 0;
     private System.Collections.IEnumerator CaptureTask(RainWorldGame game)
     {
         // Task start
         Logger.LogDebug("capture task start");
         Random.InitState(0);
+
+        if (ModManager.MSC && Region.GetFullRegionOrder().Contains("SD"))
+        {
+            SpecificRegionOverrides["white"].Add("LC");
+            SpecificRegionOverrides["yellow"].Add("LC");
+            SpecificRegionOverrides["red"].Add("LC");
+            SpecificRegionOverrides["gourmand"].Add("LC");
+            SpecificRegionOverrides["rivulet"].Add("LC");
+            SpecificRegionOverrides["spear"].Add("LC");
+            SpecificRegionOverrides["inv"].Add("LC");
+        }
+
+        if (captureSpecific.Count == 0)
+        {
+            foreach (string slugcatName in SlugcatStats.Name.values.entries.OrderByDescending(ScugPriority))
+            {
+                SlugcatStats.Name slugcat = new(slugcatName);
+
+                if ((!ModManager.MSC || slugcat != MoreSlugcatsEnums.SlugcatStatsName.Sofanthiel) && SlugcatStats.HiddenOrUnplayableSlugcat(slugcat))
+                {
+                    continue;
+                }
+
+                foreach (string region in SlugcatStats.getSlugcatStoryRegions(slugcat))
+                {
+                    captureSpecific.Enqueue((slugcatName, region));
+                }
+                foreach (string region in SlugcatStats.getSlugcatOptionalRegions(slugcat))
+                {
+                    captureSpecific.Enqueue((slugcatName, region));
+                }
+
+                foreach (string region in AllScugsRegionOverrides)
+                {
+                    // Make sure region exists
+                    if (Region.GetFullRegionOrder().Contains(region))
+                        captureSpecific.Enqueue((slugcatName, region));
+                }
+                if (SpecificRegionOverrides.ContainsKey(slugcatName.ToLower()))
+                {
+                    foreach (string region in SpecificRegionOverrides[slugcatName.ToLower()])
+                    {
+                        if (Region.GetFullRegionOrder().Contains(region))
+                            captureSpecific.Enqueue((slugcatName, region));
+                    }
+                }
+            }
+        }
 
         // 1st camera transition is a bit whack ? give it a sec to load
         //while (game.cameras[0].www != null) yield return null;
@@ -384,44 +583,74 @@ sealed class MapExporter : BaseUnityPlugin
 
         SlugcatFile slugcatsJson = new();
 
-        if (captureSpecific?.Length > 0) {
-            foreach (var capture in captureSpecific) {
-                SlugcatStats.Name slugcat = new(capture.Split(';')[0]);
+        // Recreate scuglat list from last time if needed
+        string configPath = Custom.LegacyRootFolderDirectory() + "MapExportConfig.txt";
+        string progressPath = Custom.LegacyRootFolderDirectory() + "MapExportProgress.txt";
+        if (File.Exists(progressPath))
+        {
+            foreach (string scug in File.ReadAllLines(progressPath))
+            {
+                SlugcatStats.Name slugcat = new(scug);
 
                 game.GetStorySession.saveStateNumber = slugcat;
                 game.GetStorySession.saveState.saveStateNumber = slugcat;
 
                 slugcatsJson.AddCurrentSlugcat(game);
-
-                foreach (var step in CaptureRegion(game, region: capture.Split(';')[1]))
-                    yield return step;
-            }
-        }
-        else {
-            // Iterate over each region on each slugcat
-            foreach (string slugcatName in SlugcatStats.Name.values.entries.OrderByDescending(ScugPriority)) {
-                SlugcatStats.Name slugcat = new(slugcatName);
-
-                if (SlugcatStats.HiddenOrUnplayableSlugcat(slugcat)) {
-                    continue;
-                }
-
-                game.GetStorySession.saveStateNumber = slugcat;
-                game.GetStorySession.saveState.saveStateNumber = slugcat;
-
-                slugcatsJson.AddCurrentSlugcat(game);
-
-                foreach (var region in SlugcatStats.getSlugcatStoryRegions(slugcat).Concat(SlugcatStats.getSlugcatOptionalRegions(slugcat))) {
-                    foreach (var step in CaptureRegion(game, region))
-                        yield return step;
-                }
             }
         }
 
-        File.WriteAllText(PathOfSlugcatData(), Json.Serialize(slugcatsJson));
+        bool resetMemory = false;
+        while (captureSpecific.Count > 0)
+        {
+            var capture = captureSpecific.Dequeue();
+            SlugcatStats.Name slugcat = new(capture.Item1);
 
-        Logger.LogDebug("capture task done!");
-        Application.Quit();
+            game.GetStorySession.saveStateNumber = slugcat;
+            game.GetStorySession.saveState.saveStateNumber = slugcat;
+
+            slugcatsJson.AddCurrentSlugcat(game);
+
+            foreach (var step in CaptureRegion(game, region: capture.Item2))
+                yield return step;
+
+            // Save progress
+            File.WriteAllLines(configPath, captureSpecific.Select(tuple => tuple.Item1 + ";" + tuple.Item2));
+            File.WriteAllLines(progressPath, slugcatsJson.ToJson().Keys);
+
+            // Memory stuff
+            AssetManager.HardCleanFutileAssets();
+            GC.Collect();
+
+            // Stop early if we're low on memory
+            if (capturedScreens >= NUM_SCREENS_BEFORE_RESET)
+            {
+                resetMemory = true;
+                break;
+            }
+        }
+
+        string pyPath = Custom.LegacyRootFolderDirectory() + "MapExportReopen.py";
+        if (resetMemory)
+        {
+            File.WriteAllLines(pyPath, new string[]
+            {
+                "import webbrowser",
+                "import time",
+                "time.sleep(5)",
+                $"webbrowser.open(\"steam://rungameid/312520\")"
+            });
+            Process.Start("CMD.exe", "/C python \"" + pyPath + "\"");
+            Application.Quit();
+        }
+        else
+        {
+            if (File.Exists(progressPath)) File.Delete(progressPath);
+            if (File.Exists(pyPath)) File.Delete(pyPath);
+            File.WriteAllText(PathOfSlugcatData(), Json.Serialize(slugcatsJson));
+
+            Logger.LogDebug("capture task done!");
+            Application.Quit();
+        }
     }
 
     private System.Collections.IEnumerable CaptureRegion(RainWorldGame game, string region)
@@ -500,6 +729,7 @@ sealed class MapExporter : BaseUnityPlugin
 
         for (int i = 0; i < room.realizedRoom.cameraPositions.Length; i++) {
             // load screen
+            capturedScreens++;
             Random.InitState(room.name.GetHashCode()); // allow for deterministic random numbers, to make rain look less garbage
             game.cameras[0].MoveCamera(i);
             game.cameras[0].virtualMicrophone.AllQuiet();

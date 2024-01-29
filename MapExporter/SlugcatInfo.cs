@@ -11,6 +11,7 @@ sealed class SlugcatFile : IJsonObject
 
     public void AddCurrentSlugcat(RainWorldGame game)
     {
+        if (scugs.ContainsKey(game.StoryCharacter.value.ToLower())) return;
         scugs[game.StoryCharacter.value.ToLower()] = new Slugcat(game);
     }
 
@@ -26,9 +27,10 @@ sealed class Slugcat : IJsonObject
     public Slugcat(RainWorldGame game)
     {
         SaveState ss = (SaveState)FormatterServices.GetUninitializedObject(typeof(SaveState));
+        var myScug = game.StoryCharacter;
         ss.progression = game.rainWorld.progression;
         ss.progression.rainWorld.safariMode = false;
-        ss.saveStateNumber = game.StoryCharacter;
+        ss.saveStateNumber = myScug;
         ss.setDenPosition();
         ss.progression.rainWorld.safariMode = true;
 
@@ -42,8 +44,26 @@ sealed class Slugcat : IJsonObject
         }
 
         regions = new Dictionary<string, string>();
-        foreach (var reg in SlugcatStats.getSlugcatStoryRegions(game.StoryCharacter).Concat(SlugcatStats.getSlugcatOptionalRegions(game.StoryCharacter))) {
-            regions[reg] = Region.GetRegionFullName(reg, game.StoryCharacter);
+        foreach (var reg in SlugcatStats.getSlugcatStoryRegions(myScug)) {
+            regions[reg] = Region.GetRegionFullName(reg, myScug);
+        }
+        foreach (var reg in SlugcatStats.getSlugcatOptionalRegions(myScug))
+        {
+            regions[reg] = Region.GetRegionFullName(reg, myScug);
+        }
+        var allRegions = Region.GetFullRegionOrder();
+        foreach (var reg in MapExporter.AllScugsRegionOverrides)
+        {
+            if (allRegions.Contains(reg))
+                regions[reg] = Region.GetRegionFullName(reg, myScug);
+        }
+        if (MapExporter.SpecificRegionOverrides.ContainsKey(myScug.ToString().ToLower()))
+        {
+            foreach (var reg in MapExporter.SpecificRegionOverrides[myScug.ToString().ToLower()])
+            {
+                if (allRegions.Contains(reg))
+                    regions[reg] = Region.GetRegionFullName(reg, myScug);
+            }
         }
     }
 
