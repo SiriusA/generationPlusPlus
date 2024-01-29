@@ -43,7 +43,6 @@ sealed class MapExporter : BaseUnityPlugin
     {
         "AK",
         "DP",
-        "FZ", // part of the outline
         "HC",
         "HF",
         "QW",
@@ -63,7 +62,7 @@ sealed class MapExporter : BaseUnityPlugin
         { "rivulet", new() { } },
         { "spear", new() { } },
         { "saint", new() { "FR", "NF" } },
-        { "inv", new() { } }
+        { "inv", new() { "TM" } }
     };
 
     public static bool NotHiddenRoom(AbstractRoom room) => !HiddenRoom(room);
@@ -143,6 +142,8 @@ sealed class MapExporter : BaseUnityPlugin
             On.CustomDecal.InitiateSprites += CustomDecal_InitiateSprites;
             On.Menu.DialogBoxNotify.Update += DialogBoxNotify_Update;
             IL.BubbleGrass.Update += BubbleGrass_Update;
+            On.MoreSlugcats.BlinkingFlower.DrawSprites += BlinkingFlower_DrawSprites;
+            On.RoomCamera.ApplyEffectColorsToPaletteTexture += RoomCamera_ApplyEffectColorsToPaletteTexture;
             Logger.LogDebug("Finished start thingy");
         }
         catch (Exception e)
@@ -152,6 +153,28 @@ sealed class MapExporter : BaseUnityPlugin
         }
 
         orig(self);
+    }
+
+    // Fixes some crashes in ZZ (Aerial Arrays)
+    private void RoomCamera_ApplyEffectColorsToPaletteTexture(On.RoomCamera.orig_ApplyEffectColorsToPaletteTexture orig, RoomCamera self, ref Texture2D texture, int color1, int color2)
+    {
+        color1 = Math.Min(color1, 21);
+        color2 = Math.Min(color2, 21);
+        orig(self, ref texture, color1, color2);
+    }
+    private void BlinkingFlower_DrawSprites(On.MoreSlugcats.BlinkingFlower.orig_DrawSprites orig, BlinkingFlower self, RoomCamera.SpriteLeaser sLeaser, RoomCamera rCam, float timeStacker, Vector2 camPos)
+    {
+        if (self.room == null)
+        {
+            foreach (var sprite in sLeaser.sprites)
+            {
+                sprite.isVisible = false;
+            }
+        }
+        else
+        {
+            orig(self, sLeaser, rCam, timeStacker, camPos);
+        }
     }
 
     // Fix a crash in inv SS
