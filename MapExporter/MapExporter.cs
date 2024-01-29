@@ -629,7 +629,7 @@ sealed class MapExporter : BaseUnityPlugin
         }
 
         string pyPath = Custom.LegacyRootFolderDirectory() + "MapExportReopen.py";
-        if (resetMemory)
+        if (resetMemory && captureSpecific.Count > 0)
         {
             File.WriteAllLines(pyPath, new string[]
             {
