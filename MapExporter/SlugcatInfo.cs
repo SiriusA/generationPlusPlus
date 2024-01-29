@@ -57,9 +57,9 @@ sealed class Slugcat : IJsonObject
             if (allRegions.Contains(reg))
                 regions[reg] = Region.GetRegionFullName(reg, myScug);
         }
-        if (MapExporter.SpecificRegionOverrides.ContainsKey(myScug.ToString()))
+        if (MapExporter.SpecificRegionOverrides.ContainsKey(myScug.ToString().ToLower()))
         {
-            foreach (var reg in MapExporter.SpecificRegionOverrides[myScug.ToString()])
+            foreach (var reg in MapExporter.SpecificRegionOverrides[myScug.ToString().ToLower()])
             {
                 if (allRegions.Contains(reg))
                     regions[reg] = Region.GetRegionFullName(reg, myScug);

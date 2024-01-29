@@ -41,11 +41,28 @@ sealed class MapExporter : BaseUnityPlugin
 
     public static List<string> AllScugsRegionOverrides = new()
     {
-        "HC"
+        "AK",
+        "DP",
+        "FZ", // part of the outline
+        "HC",
+        "HF",
+        "QW",
+        "RW",
+        "TO",
+        "UF",
+        "WM"
     };
     public static readonly Dictionary<string, List<string>> SpecificRegionOverrides = new()
     {
-        //
+        { "white", new() { "TZ" } },
+        { "yellow", new() { "TZ" } },
+        { "red", new() { "TZ" } },
+        { "gourmand", new() { } },
+        { "artificer", new() { } },
+        { "rivulet", new() { } },
+        { "spear", new() { } },
+        { "saint", new() { "FR", "NF" } },
+        { "inv", new() { } }
     };
 
     public static bool NotHiddenRoom(AbstractRoom room) => !HiddenRoom(room);
@@ -484,6 +501,17 @@ sealed class MapExporter : BaseUnityPlugin
         Logger.LogDebug("capture task start");
         Random.InitState(0);
 
+        if (ModManager.MSC && Region.GetFullRegionOrder().Contains("SD"))
+        {
+            SpecificRegionOverrides["white"].Add("LC");
+            SpecificRegionOverrides["yellow"].Add("LC");
+            SpecificRegionOverrides["red"].Add("LC");
+            SpecificRegionOverrides["gourmand"].Add("LC");
+            SpecificRegionOverrides["rivulet"].Add("LC");
+            SpecificRegionOverrides["spear"].Add("LC");
+            SpecificRegionOverrides["inv"].Add("LC");
+        }
+
         if (captureSpecific.Count == 0)
         {
             foreach (string slugcatName in SlugcatStats.Name.values.entries.OrderByDescending(ScugPriority))
@@ -510,9 +538,9 @@ sealed class MapExporter : BaseUnityPlugin
                     if (Region.GetFullRegionOrder().Contains(region))
                         captureSpecific.Enqueue((slugcatName, region));
                 }
-                if (SpecificRegionOverrides.ContainsKey(slugcatName))
+                if (SpecificRegionOverrides.ContainsKey(slugcatName.ToLower()))
                 {
-                    foreach (string region in SpecificRegionOverrides[slugcatName])
+                    foreach (string region in SpecificRegionOverrides[slugcatName.ToLower()])
                     {
                         if (Region.GetFullRegionOrder().Contains(region))
                             captureSpecific.Enqueue((slugcatName, region));
