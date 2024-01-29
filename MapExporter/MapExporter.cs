@@ -50,12 +50,13 @@ sealed class MapExporter : BaseUnityPlugin
         "RW",
         "TO",
         "UF",
-        "WM"
+        "WM",
+        "ZZ"
     };
     public static readonly Dictionary<string, List<string>> SpecificRegionOverrides = new()
     {
         { "white", new() { "TZ" } },
-        { "yellow", new() { "TZ" } },
+        { "yellow", new() { "TZ", "XD" } },
         { "red", new() { "TZ" } },
         { "gourmand", new() { } },
         { "artificer", new() { } },
