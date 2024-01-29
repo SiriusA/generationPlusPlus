@@ -43,7 +43,6 @@ sealed class MapExporter : BaseUnityPlugin
     {
         "AK",
         "DP",
-        "HC",
         "HF",
         "QW",
         "RW",
@@ -54,14 +53,14 @@ sealed class MapExporter : BaseUnityPlugin
     };
     public static readonly Dictionary<string, List<string>> SpecificRegionOverrides = new()
     {
-        { "white", new() { "TZ" } },
-        { "yellow", new() { "TZ", "XD" } },
-        { "red", new() { "TZ" } },
-        { "gourmand", new() { } },
-        { "artificer", new() { } },
-        { "rivulet", new() { } },
-        { "spear", new() { } },
-        { "saint", new() { "FR", "NF" } },
+        { "white", new() { "TZ", "HC" } },
+        { "yellow", new() { "TZ", "XD", "HC" } },
+        { "red", new() { "TZ", "HC" } },
+        { "gourmand", new() { "HC" } },
+        { "artificer", new() { "HC" } },
+        { "rivulet", new() { "HC" } },
+        { "spear", new() { "HC" } },
+        { "saint", new() { "HC", "FR", "NF" } },
         { "inv", new() { "TM" } }
     };
 
