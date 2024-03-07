@@ -22,10 +22,11 @@ using Mono.Cecil.Cil;
 
 namespace MapExporter;
 
-[BepInPlugin("io.github.henpemaz-dual-alduris", "Map Exporter", "1.0.0")]
+[BepInPlugin(MOD_ID, "Map Exporter", "1.0.0")]
 sealed class MapExporter : BaseUnityPlugin
 {
     // Config
+    const string MOD_ID = "henpemaz-dual-noblecat-alduris.mapexporter";
     const int NUM_SCREENS_BEFORE_RESET = 500;
     static readonly Queue<(string, string)> captureSpecific = new() { }; // For example, "White;SU" loads Outskirts as Survivor
     static readonly bool screenshots = true;
@@ -105,45 +106,55 @@ sealed class MapExporter : BaseUnityPlugin
         Logger.LogDebug("Started start thingy");
         try
         {
-            string configPath = Custom.LegacyRootFolderDirectory() + "MapExportConfig.txt";
-            if (File.Exists(configPath))
+            if (Environment.GetCommandLineArgs().Contains("-run"))
             {
-                foreach (string line in File.ReadAllLines(configPath))
+                //
+                string configPath = Custom.LegacyRootFolderDirectory() + "MapExportConfig.txt";
+                if (File.Exists(configPath))
                 {
-                    string[] split = line.Split(';');
-                    captureSpecific.Enqueue((split[0], split[1]));
+                    foreach (string line in File.ReadAllLines(configPath))
+                    {
+                        string[] split = line.Split(';');
+                        captureSpecific.Enqueue((split[0], split[1]));
+                    }
                 }
+                On.Json.Serializer.SerializeValue += Serializer_SerializeValue;
+                On.RainWorld.LoadSetupValues += RainWorld_LoadSetupValues;
+                On.RainWorld.Update += RainWorld_Update;
+                On.World.SpawnGhost += World_SpawnGhost;
+                On.GhostWorldPresence.SpawnGhost += GhostWorldPresence_SpawnGhost;
+                On.GhostWorldPresence.GhostMode_AbstractRoom_Vector2 += GhostWorldPresence_GhostMode_AbstractRoom_Vector2;
+                On.Ghost.Update += Ghost_Update;
+                On.RainWorldGame.ctor += RainWorldGame_ctor;
+                On.RainWorldGame.Update += RainWorldGame_Update;
+                On.RainWorldGame.RawUpdate += RainWorldGame_RawUpdate;
+                new Hook(typeof(RainWorldGame).GetProperty("TimeSpeedFac").GetGetMethod(), typeof(MapExporter).GetMethod("RainWorldGame_ZeroProperty"), this);
+                new Hook(typeof(RainWorldGame).GetProperty("InitialBlackSeconds").GetGetMethod(), typeof(MapExporter).GetMethod("RainWorldGame_ZeroProperty"), this);
+                new Hook(typeof(RainWorldGame).GetProperty("FadeInTime").GetGetMethod(), typeof(MapExporter).GetMethod("RainWorldGame_ZeroProperty"), this);
+                On.OverWorld.WorldLoaded += OverWorld_WorldLoaded;
+                // On.Room.ReadyForAI += Room_ReadyForAI;
+                On.Room.Loaded += Room_Loaded;
+                On.Room.ScreenMovement += Room_ScreenMovement;
+                On.RoomCamera.DrawUpdate += RoomCamera_DrawUpdate;
+                On.VoidSpawnGraphics.DrawSprites += VoidSpawnGraphics_DrawSprites;
+                On.AntiGravity.BrokenAntiGravity.ctor += BrokenAntiGravity_ctor;
+                On.GateKarmaGlyph.DrawSprites += GateKarmaGlyph_DrawSprites;
+                On.WorldLoader.ctor_RainWorldGame_Name_bool_string_Region_SetupValues += WorldLoader_ctor_RainWorldGame_Name_bool_string_Region_SetupValues;
+                On.ScavengersWorldAI.WorldFloodFiller.Update += WorldFloodFiller_Update;
+                On.CustomDecal.LoadFile += CustomDecal_LoadFile;
+                On.CustomDecal.InitiateSprites += CustomDecal_InitiateSprites;
+                On.Menu.DialogBoxNotify.Update += DialogBoxNotify_Update;
+                IL.BubbleGrass.Update += BubbleGrass_Update;
+                On.MoreSlugcats.BlinkingFlower.DrawSprites += BlinkingFlower_DrawSprites;
+                On.RoomCamera.ApplyEffectColorsToPaletteTexture += RoomCamera_ApplyEffectColorsToPaletteTexture;
+                Logger.LogDebug("Finished start thingy");
             }
-            On.Json.Serializer.SerializeValue += Serializer_SerializeValue;
-            On.RainWorld.LoadSetupValues += RainWorld_LoadSetupValues;
-            On.RainWorld.Update += RainWorld_Update;
-            On.World.SpawnGhost += World_SpawnGhost;
-            On.GhostWorldPresence.SpawnGhost += GhostWorldPresence_SpawnGhost;
-            On.GhostWorldPresence.GhostMode_AbstractRoom_Vector2 += GhostWorldPresence_GhostMode_AbstractRoom_Vector2;
-            On.Ghost.Update += Ghost_Update;
-            On.RainWorldGame.ctor += RainWorldGame_ctor;
-            On.RainWorldGame.Update += RainWorldGame_Update;
-            On.RainWorldGame.RawUpdate += RainWorldGame_RawUpdate;
-            new Hook(typeof(RainWorldGame).GetProperty("TimeSpeedFac").GetGetMethod(), typeof(MapExporter).GetMethod("RainWorldGame_ZeroProperty"), this);
-            new Hook(typeof(RainWorldGame).GetProperty("InitialBlackSeconds").GetGetMethod(), typeof(MapExporter).GetMethod("RainWorldGame_ZeroProperty"), this);
-            new Hook(typeof(RainWorldGame).GetProperty("FadeInTime").GetGetMethod(), typeof(MapExporter).GetMethod("RainWorldGame_ZeroProperty"), this);
-            On.OverWorld.WorldLoaded += OverWorld_WorldLoaded;
-            On.Room.ReadyForAI += Room_ReadyForAI;
-            On.Room.Loaded += Room_Loaded;
-            On.Room.ScreenMovement += Room_ScreenMovement;
-            On.RoomCamera.DrawUpdate += RoomCamera_DrawUpdate;
-            On.VoidSpawnGraphics.DrawSprites += VoidSpawnGraphics_DrawSprites;
-            On.AntiGravity.BrokenAntiGravity.ctor += BrokenAntiGravity_ctor;
-            On.GateKarmaGlyph.DrawSprites += GateKarmaGlyph_DrawSprites;
-            On.WorldLoader.ctor_RainWorldGame_Name_bool_string_Region_SetupValues += WorldLoader_ctor_RainWorldGame_Name_bool_string_Region_SetupValues;
-            On.ScavengersWorldAI.WorldFloodFiller.Update += WorldFloodFiller_Update;
-            On.CustomDecal.LoadFile += CustomDecal_LoadFile;
-            On.CustomDecal.InitiateSprites += CustomDecal_InitiateSprites;
-            On.Menu.DialogBoxNotify.Update += DialogBoxNotify_Update;
-            IL.BubbleGrass.Update += BubbleGrass_Update;
-            On.MoreSlugcats.BlinkingFlower.DrawSprites += BlinkingFlower_DrawSprites;
-            On.RoomCamera.ApplyEffectColorsToPaletteTexture += RoomCamera_ApplyEffectColorsToPaletteTexture;
-            Logger.LogDebug("Finished start thingy");
+            else
+            {
+                // Register options thing
+                Logger.LogDebug("Normal game instance, don't run hooks");
+                MachineConnector.SetRegisteredOI(MOD_ID, new Options());
+            }
         }
         catch (Exception e)
         {
@@ -383,10 +394,10 @@ sealed class MapExporter : BaseUnityPlugin
         for (int i = self.roomSettings.effects.Count - 1; i >= 0; i--) {
             if (self.roomSettings.effects[i].type == RoomSettings.RoomEffect.Type.VoidSea) self.roomSettings.effects.RemoveAt(i); // breaks with no player
             else if (self.roomSettings.effects[i].type.ToString() == "CGCameraZoom") self.roomSettings.effects.RemoveAt(i); // bad for screenies
-            else if (((int)self.roomSettings.effects[i].type) >= 27 && ((int)self.roomSettings.effects[i].type) <= 36) self.roomSettings.effects.RemoveAt(i); // insects bad for screenies
+            // else if (((int)self.roomSettings.effects[i].type) >= 27 && ((int)self.roomSettings.effects[i].type) <= 36) self.roomSettings.effects.RemoveAt(i); // insects bad for screenies
         }
         foreach (var item in self.roomSettings.placedObjects) {
-            if (item.type == PlacedObject.Type.InsectGroup) item.active = false;
+            // if (item.type == PlacedObject.Type.InsectGroup) item.active = false;
             if (item.type == PlacedObject.Type.FlyLure
                 || item.type == PlacedObject.Type.JellyFish) self.waitToEnterAfterFullyLoaded = Mathf.Max(self.waitToEnterAfterFullyLoaded, 20);
 
@@ -395,13 +406,13 @@ sealed class MapExporter : BaseUnityPlugin
     }
 
     // no orcacles
-    private void Room_ReadyForAI(On.Room.orig_ReadyForAI orig, Room self)
+    /*private void Room_ReadyForAI(On.Room.orig_ReadyForAI orig, Room self)
     {
         string oldname = self.abstractRoom.name;
         if (self.abstractRoom.name.EndsWith("_AI")) self.abstractRoom.name = "XXX"; // oracle breaks w no player
         orig(self);
         self.abstractRoom.name = oldname;
-    }
+    }*/
 
     // no gate switching
     private void OverWorld_WorldLoaded(On.OverWorld.orig_WorldLoaded orig, OverWorld self)
