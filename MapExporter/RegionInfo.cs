@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using System.Linq;
 using System.IO;
 using RWCustom;
+using System;
 
 namespace MapExporter;
 
@@ -111,6 +112,77 @@ sealed class RegionInfo : IJsonObject
         GetOrCreateRoomEntry(room.abstractRoom.name).UpdateEntry(room);
     }
 
+
+    // Shove any rooms that are stacked on top of each other elsewhere. (no minimap data)
+    public void FixMinimapLessRooms(List<AbstractRoom> realRooms) 
+    {
+        List<RoomEntry> miniMapLessRooms = rooms.Values.Where(r =>
+        {
+            return r.canPos.x == 0
+            && r.canPos.y == 0
+            && r.devPos.x == 0
+            && r.devPos.y == 0
+            && r.canLayer == 0;
+        })
+            .ToList();
+
+        float furthestX = rooms.Values.Where(r => r != null)
+            .Select(r => r.GetWidth())
+            .Aggregate(0, (a, b) => a + b) / 2;
+        float furthestY = rooms.Values.Where(r => r != null)
+            .Select(r => r.GetHeight())
+            .Aggregate(0, (a, b) => a + b) / 2;
+
+        bool vertical = true;
+        float lineOn = vertical ? furthestX + 100 : furthestY + 100;
+
+
+        // TODO: probably should center the entire thing...
+        float startingPos = miniMapLessRooms.Select(r => vertical ? r.GetHeight() : r.GetWidth())
+            .Aggregate(0, (a, b) => a+b);
+        startingPos = 0 - startingPos / 2;
+
+        foreach (RoomEntry r in miniMapLessRooms)
+        {
+            if (vertical)
+            {
+                r.canPos.Set(lineOn, startingPos);
+                r.devPos.Set(lineOn, startingPos);
+                r.subregion = "MiniMapLess";
+                startingPos += r.GetHeight() + 100;
+            } else
+            {
+                r.canPos.Set(startingPos, lineOn);
+                r.devPos.Set(startingPos, lineOn);
+                r.subregion = "MiniMapLess";
+                startingPos += r.GetWidth() + 100;
+            }
+
+            AbstractRoom realRoom = realRooms.Find(realRoom => realRoom.name.Equals(r.roomName));
+            if (realRoom != null)
+            {
+                List<ConnectionEntry> connectionsToAdd = realRoom.connections.Select(r2 => realRoom.world.GetAbstractRoom(r2))
+                    .Where(r2 => r2 != null)
+                    // Where we don't find a connection that already exists
+                    .Where(r2 => connections.Find(connEntry =>
+                    {
+                        return (connEntry.roomA.Equals(realRoom.name) && connEntry.roomB.Equals(r2.name))
+                            || (connEntry.roomB.Equals(realRoom.name) && connEntry.roomA.Equals(r2.name));
+                    }) == null)
+                    .Select(r2 =>
+                    {
+                        ConnectionEntry connectionEntry = new ConnectionEntry("0,0,0,0,0,0,0,0");
+                        connectionEntry.roomA = realRoom.name;
+                        connectionEntry.roomB = r2.name;
+                        return connectionEntry;
+                    })
+                    .ToList();
+                connections.AddRange(connectionsToAdd);
+
+            }
+        }
+    }
+
     public Dictionary<string, object> ToJson()
     {
         var ret = new Dictionary<string, object> {
@@ -193,6 +265,18 @@ sealed class RegionInfo : IJsonObject
                 }
             }
             nodes = room.exitAndDenIndex;
+        }
+
+        // TODO: how to c#
+        public int GetWidth()
+        {
+            return size != null ? size[0] : 0;
+        }
+
+        // TODO: how to c#
+        public int GetHeight()
+        {
+            return size != null ? size[1] : 0;
         }
 
         // wish there was a better way to do this

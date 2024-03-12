@@ -695,6 +695,8 @@ sealed class MapExporter : BaseUnityPlugin
             }
         }
 
+        mapContent.FixMinimapLessRooms(rooms);
+
         File.WriteAllText(PathOfMetadata(slugcat.value, region), Json.Serialize(mapContent));
 
         Logger.LogDebug("capture task done with " + region);
