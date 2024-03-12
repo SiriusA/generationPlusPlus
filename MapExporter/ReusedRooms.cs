@@ -1,5 +1,8 @@
-﻿using System.Collections.Generic;
+﻿using IL.JollyCoop;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace MapExporter;
 
@@ -11,14 +14,55 @@ static class ReusedRooms
     }
 
     static readonly Dictionary<string, RegionData> regions = new();
+    static readonly List<string> dessicatedRegionList = new();
 
-    public static string SlugcatRoomsToUse(string slugcat, World world, List<AbstractRoom> validRooms)
+    public static void saveReusedRooms(string path)
+    {
+
+        Dictionary<string, Dictionary<string, string>> baseSlugWorldToRooms = new Dictionary<string, Dictionary<string, string>>();
+        MapExporter.Logger.LogDebug($"regions: {regions}");
+        MapExporter.Logger.LogDebug($"regions keys: {regions.Keys}");
+        foreach (string baseSlugWorld in regions.Keys)
+        {
+            if (!dessicatedRegionList.Contains(baseSlugWorld))
+            {
+                MapExporter.Logger.LogDebug($"adding to reusedRoomst: {baseSlugWorld}");
+                dessicatedRegionList.Add(baseSlugWorld);
+            }
+        }
+
+        //TODO: could probably replace with txt files instead... 
+        string output = Json.Serialize(dessicatedRegionList);
+        MapExporter.Logger.LogDebug($"ReusedRoom output: {output}");
+        File.WriteAllText(path, output);
+    }
+
+    public static void loadReusedRooms(string path)
+    {
+        try
+        {
+            //TODO: could probably replace with txt files instead... 
+            string input = File.ReadAllText(path);
+            List<object> dessicatedLoadedO = Json.Deserialize(input) as List<object>;
+            foreach (object baseSlugWorld in dessicatedLoadedO)
+            {
+                dessicatedRegionList.Add(baseSlugWorld.ToString());
+            }
+        } catch (System.Exception e)
+        {
+            MapExporter.Logger.LogWarning($"Unable to load reusedRooms. exception: {e}");
+        }
+        MapExporter.Logger.LogInfo("Loaded dehydrated reusedRooms");
+    }
+
+    public static string SlugcatRoomsToUse(string slugcat, World world, List<AbstractRoom> validRooms, RainWorldGame game)
     {
         slugcat = slugcat.ToLower();
 
         string baseSlugcat = SlugcatFor(slugcat, world.name);
         string key = $"{baseSlugcat}#{world.name}";
 
+        MapExporter.Logger.LogDebug($"slugcat: {slugcat} baseSlugCat: {baseSlugcat}");
         if (baseSlugcat == slugcat) {
             regions[key] = new() {
                 settings = validRooms.ToDictionary(
@@ -27,11 +71,42 @@ static class ReusedRooms
                     comparer: System.StringComparer.InvariantCultureIgnoreCase
                     )
             };
+            MapExporter.Logger.LogDebug($"added {key} to regions");
             return null;
         }
         if (!regions.TryGetValue(key, out RegionData regionData)) {
-            MapExporter.Logger.LogWarning($"NOT COPIED | Region settings are not stored for {baseSlugcat}/{world.name} coming from {slugcat}");
-            return null;
+            if (dessicatedRegionList.Contains(key))
+            {
+                // Rehydrate the region for the base slugcat.
+                SlugcatStats.Name baseSlugCatEnum = new(baseSlugcat);
+                game.overWorld.LoadWorld(world.name, baseSlugCatEnum, false);
+
+                List<AbstractRoom> rooms = game.world.abstractRooms.ToList();
+
+                // Don't image rooms not available for this slugcat
+                rooms.RemoveAll(MapExporter.HiddenRoom);
+
+                // Don't image offscreen dens
+                rooms.RemoveAll(r => r.offScreenDen);
+
+                regions[key] = new()
+                {
+                    settings = rooms.ToDictionary(
+                    keySelector: a => a.name,
+                    elementSelector: Settings,
+                    comparer: System.StringComparer.InvariantCultureIgnoreCase
+                    )
+                };
+                regionData = regions[key];
+
+                SlugcatStats.Name slugCatEnum = new(slugcat);
+                game.overWorld.LoadWorld(world.name, slugCatEnum, false);
+            }
+            else
+            {
+                MapExporter.Logger.LogWarning($"NOT COPIED | Region settings are not stored for {baseSlugcat}/{world.name} coming from {slugcat}");
+                return null;
+            }
         }
         if (regionData.settings.Count != validRooms.Count) {
             MapExporter.Logger.LogWarning($"NOT COPIED | Different room count for {world.name} in {baseSlugcat} and {slugcat}");
