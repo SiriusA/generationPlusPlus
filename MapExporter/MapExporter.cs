@@ -494,6 +494,11 @@ sealed class MapExporter : BaseUnityPlugin
         return Path.Combine(Path.Combine(Custom.LegacyRootFolderDirectory(), "export", "slugcats.json"));
     }
 
+    static string PathOfReusedRoomsData()
+    {
+        return Path.Combine(Path.Combine(Custom.LegacyRootFolderDirectory(), "reusedRooms.json"));
+    }
+
     static string PathOfMetadata(string slugcat, string region)
     {
         return Path.Combine(PathOfRegion(slugcat, region), "metadata.json");
@@ -597,6 +602,12 @@ sealed class MapExporter : BaseUnityPlugin
                 slugcatsJson.AddCurrentSlugcat(game);
             }
         }
+        // Load reused rooms from last run.
+        if (File.Exists(PathOfReusedRoomsData()))
+        {
+            Logger.LogDebug("Loading reused rooms data...");
+            ReusedRooms.loadReusedRooms(PathOfReusedRoomsData());
+        }
 
         bool resetMemory = false;
         while (captureSpecific.Count > 0)
@@ -673,7 +684,7 @@ sealed class MapExporter : BaseUnityPlugin
         // Don't image offscreen dens
         rooms.RemoveAll(r => r.offScreenDen);
 
-        if (ReusedRooms.SlugcatRoomsToUse(slugcat.value, game.world, rooms) is string copyRooms) {
+        if (ReusedRooms.SlugcatRoomsToUse(slugcat.value, game.world, rooms, game) is string copyRooms) {
             mapContent.copyRooms = copyRooms;
         }
         else {
